@@ -1,6 +1,7 @@
 // GitHub REST API integration
 
 const GITHUB_API = 'https://api.github.com';
+const CONTENT_UPDATE_ATTEMPTS = 6;
 
 function encodeContentPath(path) {
   return String(path || '')
@@ -36,6 +37,14 @@ function buildAppendContent(existingContent, newContent, marker) {
   ].filter(line => line !== '').join('\n');
 
   return `${existingContent.replace(/\s+$/g, '')}${separator}${newContent}`;
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getContentRetryDelay(attempt) {
+  return 750 * (attempt + 1);
 }
 
 export class GitHubAPI {
@@ -144,7 +153,7 @@ export class GitHubAPI {
     const encoded = encodeFileContent(content);
     let targetPath = await this.resolveContentPath(owner, repo, path, branch);
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < CONTENT_UPDATE_ATTEMPTS; attempt++) {
       const existing = await this.getFile(owner, repo, targetPath, branch);
       const body = {
         message,
@@ -159,9 +168,9 @@ export class GitHubAPI {
       try {
         return await this.request('PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(targetPath)}`, body);
       } catch (error) {
-        if (!this.isShaConflict(error) || attempt === 2) throw error;
+        if (!this.isShaConflict(error) || attempt === CONTENT_UPDATE_ATTEMPTS - 1) throw error;
         targetPath = await this.resolveContentPath(owner, repo, path, branch);
-        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        await wait(getContentRetryDelay(attempt));
       }
     }
   }
@@ -170,7 +179,7 @@ export class GitHubAPI {
     let targetPath = await this.resolveContentPath(owner, repo, path, branch);
     const marker = options.marker || '';
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < CONTENT_UPDATE_ATTEMPTS; attempt++) {
       const existing = await this.getFile(owner, repo, targetPath, branch);
       let finalContent = content;
       const body = {
@@ -204,9 +213,9 @@ export class GitHubAPI {
         const result = await this.request('PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(targetPath)}`, body);
         return { skipped: false, path: targetPath, result };
       } catch (error) {
-        if ((!this.isShaConflict(error) && !this.isAlreadyExistsConflict(error)) || attempt === 2) throw error;
+        if ((!this.isShaConflict(error) && !this.isAlreadyExistsConflict(error)) || attempt === CONTENT_UPDATE_ATTEMPTS - 1) throw error;
         targetPath = await this.resolveContentPath(owner, repo, path, branch);
-        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        await wait(getContentRetryDelay(attempt));
       }
     }
   }

@@ -487,7 +487,19 @@ async function handleFullBackup(sendResponse) {
       return;
     }
 
-    submissionsToSync.reverse();
+    submissionsToSync = Array.from(
+      submissionsToSync
+        .reduce((latestByProblem, item) => {
+          const problemId = item.meta.id || item.sub.title;
+          const current = latestByProblem.get(problemId);
+          if (!current || Number(item.sub.id) > Number(current.sub.id)) {
+            latestByProblem.set(problemId, item);
+          }
+          return latestByProblem;
+        }, new Map())
+        .values()
+    ).sort((a, b) => Number(a.sub.id) - Number(b.sub.id));
+
     broadcastToPopup({ type: 'BACKUP_STARTED', total: submissionsToSync.length });
 
     for (let i = 0; i < submissionsToSync.length; i++) {
