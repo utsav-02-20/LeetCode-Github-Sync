@@ -122,7 +122,7 @@
       gap: 10px;
     }
 
-    .card-header i {
+    .card-header .ui-icon {
       color: var(--muted);
       font-size: 14px;
     }
@@ -270,6 +270,30 @@
     .btn-danger:hover { background: rgba(248, 81, 73, 0.1); }
 
     .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+
+    .auth-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .auth-option {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: rgba(33, 38, 45, 0.35);
+    }
+
+    .auth-option-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .auth-option-title .ui-icon { color: var(--muted); }
 
     /* ── Analytics ── */
     .analytics-grid {
@@ -433,6 +457,18 @@
       color: var(--warn);
       display: none;
     }
+
+    @media (max-width: 760px) {
+      .auth-options,
+      .row-2,
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn-row {
+        flex-wrap: wrap;
+      }
+    }
   </style>
 </head>
 <body>
@@ -449,10 +485,10 @@
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Analytics</button>
-    <button class="tab-btn" data-tab="github"><i class="fa-brands fa-github"></i> GitHub</button>
-    <button class="tab-btn" data-tab="sync"><i class="fa-solid fa-sliders"></i> Sync</button>
-    <button class="tab-btn" data-tab="history"><i class="fa-solid fa-list-ul"></i> History</button>
+    <button class="tab-btn active" data-tab="analytics"><span class="ui-icon" aria-hidden="true">▦</span> Analytics</button>
+    <button class="tab-btn" data-tab="github"><span class="ui-icon" aria-hidden="true">GH</span> GitHub</button>
+    <button class="tab-btn" data-tab="sync"><span class="ui-icon" aria-hidden="true">⚙</span> Sync</button>
+    <button class="tab-btn" data-tab="history"><span class="ui-icon" aria-hidden="true">☰</span> History</button>
   </div>
 
   <div class="tab-content active" id="tab-analytics">
@@ -478,7 +514,7 @@
 
     <div class="card">
       <div class="card-header">
-        <i class="fa-solid fa-code"></i>
+        <span class="ui-icon" aria-hidden="true">{}</span>
         <div class="card-title">Language Breakdown</div>
       </div>
       <div class="card-body">
@@ -490,7 +526,7 @@
 
     <div class="card">
       <div class="card-header">
-        <i class="fa-solid fa-fire"></i>
+        <span class="ui-icon" aria-hidden="true">●</span>
         <div class="card-title">Streak Info</div>
       </div>
       <div class="card-body" style="display:flex;gap:32px">
@@ -511,7 +547,7 @@
 
     <div class="card">
       <div class="card-header">
-        <i class="fa-solid fa-key"></i>
+        <span class="ui-icon" aria-hidden="true">◈</span>
         <div class="card-title">Authentication</div>
       </div>
       <div class="card-body">
@@ -526,24 +562,45 @@
           <button class="btn btn-danger" id="disconnect-btn">Disconnect GitHub</button>
         </div>
         <div id="gh-disconnected">
-          <div class="field-group">
-            <label class="field-label">GitHub OAuth Client ID</label>
-            <input type="text" class="input input-mono" id="github-client-id" placeholder="Ov23li..." />
-            <div class="field-desc">Create this in GitHub Developer settings under OAuth Apps.</div>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Token Proxy URL</label>
-            <input type="url" class="input input-mono" id="github-token-proxy-url" placeholder="https://your-app.vercel.app/api/token" />
-            <div class="field-desc">Backend endpoint that exchanges the GitHub authorization code for an access token.</div>
-          </div>
-          <div class="field-group">
-            <label class="field-label">OAuth Callback URL</label>
-            <input type="text" class="input input-mono" id="oauth-callback-url" readonly />
-            <div class="field-desc">Add this exact URL to your GitHub OAuth app callback URL.</div>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-secondary" id="save-oauth-btn">Save OAuth Settings</button>
-            <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
+          <div class="auth-options">
+            <div class="auth-option">
+              <div class="auth-option-title"><span class="ui-icon" aria-hidden="true">GH</span> Option 1: OAuth</div>
+              <div class="field-group">
+                <label class="field-label">GitHub OAuth Client ID</label>
+                <input type="text" class="input input-mono" id="github-client-id" placeholder="Ov23li..." />
+                <div class="field-desc">Create this in GitHub Developer settings under OAuth Apps.</div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Token Proxy URL</label>
+                <input type="url" class="input input-mono" id="github-token-proxy-url" placeholder="https://your-app.vercel.app/api/token" />
+                <div class="field-desc">Backend endpoint that exchanges the GitHub authorization code for an access token.</div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">OAuth Callback URL</label>
+                <div class="btn-row" style="margin-top:0">
+                  <input type="text" class="input input-mono" id="oauth-callback-url" readonly />
+                  <button class="btn btn-secondary" id="copy-callback-btn" style="white-space:nowrap">Copy</button>
+                </div>
+                <div class="field-desc">Add this exact URL to your GitHub OAuth app callback URL.</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-secondary" id="save-oauth-btn">Save OAuth Settings</button>
+                <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
+              </div>
+            </div>
+
+            <div class="auth-option">
+              <div class="auth-option-title"><span class="ui-icon" aria-hidden="true">◈</span> Option 2: Personal Access Token</div>
+              <div class="field-group">
+                <label class="field-label">GitHub PAT</label>
+                <input type="password" class="input input-mono" id="github-pat" placeholder="github_pat_..." autocomplete="off" spellcheck="false" />
+                <div class="field-desc">Use a fine-grained token with access only to the target repository, or a classic token with repo access.</div>
+              </div>
+              <div class="field-desc" style="margin-bottom:12px">The token is validated with GitHub and kept in session storage only. It is cleared when the browser session ends.</div>
+              <div class="btn-row">
+                <button class="btn btn-primary" id="connect-pat-btn">Connect with PAT</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -551,7 +608,7 @@
 
     <div class="card">
       <div class="card-header">
-        <i class="fa-solid fa-folder-open"></i>
+        <span class="ui-icon" aria-hidden="true">□</span>
         <div class="card-title">Repository Settings</div>
       </div>
       <div class="card-body">
@@ -580,7 +637,7 @@
   <div class="tab-content" id="tab-sync">
 
     <div class="card">
-      <div class="card-header"><i class="fa-solid fa-bolt-lightning"></i><div class="card-title">Sync Behaviour</div></div>
+      <div class="card-header"><span class="ui-icon" aria-hidden="true">↻</span><div class="card-title">Sync Behaviour</div></div>
       <div class="card-body">
         <div class="toggle-row">
           <div>
@@ -600,7 +657,7 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><i class="fa-solid fa-sitemap"></i><div class="card-title">File Organisation</div></div>
+      <div class="card-header"><span class="ui-icon" aria-hidden="true">┬</span><div class="card-title">File Organisation</div></div>
       <div class="card-body">
         <div class="row-2">
           <div class="field-group">
@@ -632,7 +689,7 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><i class="fa-solid fa-comment-dots"></i><div class="card-title">Commit Message Template</div></div>
+      <div class="card-header"><span class="ui-icon" aria-hidden="true">"</span><div class="card-title">Commit Message Template</div></div>
       <div class="card-body">
         <div class="field-group">
           <input type="text" class="input input-mono" id="s-commit-tmpl" value="Solved: {id}. {title} [{language}]" />
@@ -651,7 +708,7 @@
   <div class="tab-content" id="tab-history">
     <div class="card">
       <div class="card-header">
-        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span class="ui-icon" aria-hidden="true">◷</span>
         <div class="card-title">Sync History</div>
         <button class="btn btn-secondary" style="margin-left:auto;padding:5px 10px;font-size:11px" id="clear-history-btn">Clear</button>
       </div>

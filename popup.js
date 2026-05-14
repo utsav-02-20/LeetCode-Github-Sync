@@ -124,6 +124,32 @@ $('connect-btn').addEventListener('click', async () => {
   $('connect-btn').textContent = 'Continue with GitHub';
 });
 
+$('connect-pat-btn').addEventListener('click', async () => {
+  const tokenInput = $('github-pat');
+  const token = tokenInput.value.trim();
+  if (!token) {
+    showToast('Enter a GitHub personal access token', 'error');
+    return;
+  }
+
+  $('connect-pat-btn').disabled = true;
+  $('connect-pat-btn').textContent = 'Validating...';
+
+  const res = await sendMessage({ type: 'CONNECT_WITH_PAT', token });
+  tokenInput.value = '';
+  if (res.valid) {
+    state.user = res.user;
+    state.connected = true;
+    showDashboard();
+    showToast('Connected to GitHub!', 'success');
+  } else {
+    showToast('PAT login failed: ' + (res.error || 'Token could not be validated'), 'error');
+  }
+
+  $('connect-pat-btn').disabled = false;
+  $('connect-pat-btn').textContent = 'Connect with PAT';
+});
+
 $('disconnect-btn').addEventListener('click', async () => {
   if (!confirm('Disconnect from GitHub?')) return;
   await sendMessage({ type: 'DISCONNECT' });

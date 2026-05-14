@@ -232,6 +232,26 @@ async function exchangeCodeForToken(code, tokenProxyUrl) {
   return data.access_token;
 }
 
+function sanitizePat(value) {
+  const token = String(value || '').trim();
+  if (!token || token.length < 20 || token.length > 255) return null;
+  if (/[\s\u0000-\u001f\u007f]/.test(token)) return null;
+  return token;
+}
+
+async function connectWithPat(rawToken) {
+  const token = sanitizePat(rawToken);
+  if (!token) {
+    throw new Error('Enter a valid GitHub personal access token.');
+  }
+
+  const api = new GitHubAPI(token);
+  const user = await api.getUser();
+  await saveToken(token);
+
+  return { valid: true, user: { login: user.login, avatar_url: user.avatar_url } };
+}
+
 // ─── Sync Queue ───────────────────────────────────────────────────────────────
 
 async function processSyncQueue() {
@@ -464,6 +484,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'INITIATE_LOGIN') {
     launchOAuthFlow().then(sendResponse).catch(e => sendResponse({ valid: false, error: e.message }));
+    return true;
+  }
+  if (message.type === 'CONNECT_WITH_PAT') {
+    connectWithPat(message.token).then(sendResponse).catch(e => sendResponse({ valid: false, error: e.message }));
     return true;
   }
   if (message.type === 'GET_STATUS') {

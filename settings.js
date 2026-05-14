@@ -8,7 +8,6 @@ let unsaved = false;
 async function init() {
   const data = await getStorage(['settings', 'stats', 'syncHistory']);
   const status = await sendMessage({ type: 'GET_STATUS' });
-  const oauth = await sendMessage({ type: 'GET_OAUTH_REDIRECT_URL' });
   const settings = data.settings || {};
   const stats = data.stats || {};
   const history = data.syncHistory || [];
@@ -25,7 +24,7 @@ async function init() {
   $('s-commit-tmpl').value = settings.commitTemplate || 'Solved: {id}. {title} [{language}]';
   $('github-client-id').value = settings.githubClientId || '';
   $('github-token-proxy-url').value = settings.githubTokenProxyUrl || '';
-  $('oauth-callback-url').value = oauth.redirectUrl || '';
+  $('oauth-callback-url').value = getOAuthRedirectUrl();
 
   // Auth state
   if (status.connected && status.user) {
@@ -43,6 +42,7 @@ async function init() {
   // Mark settings as clean after load
   setTimeout(() => {
     document.querySelectorAll('input, select').forEach(el => {
+      if (el.id === 'github-pat') return;
       el.addEventListener('change', markUnsaved);
       el.addEventListener('input', markUnsaved);
     });
@@ -83,6 +83,30 @@ $('connect-btn').addEventListener('click', async () => {
   $('connect-btn').textContent = 'Continue with GitHub';
 });
 
+$('connect-pat-btn').addEventListener('click', async () => {
+  const tokenInput = $('github-pat');
+  const token = tokenInput.value.trim();
+  if (!token) {
+    showToast('Enter a GitHub personal access token', 'error');
+    return;
+  }
+
+  $('connect-pat-btn').disabled = true;
+  $('connect-pat-btn').textContent = 'Validating...';
+  const res = await sendMessage({ type: 'CONNECT_WITH_PAT', token });
+  tokenInput.value = '';
+
+  if (res.valid) {
+    showConnected(res.user);
+    showToast('Connected as ' + res.user.login, 'success');
+  } else {
+    showToast('PAT login failed: ' + (res.error || 'Token could not be validated'), 'error');
+  }
+
+  $('connect-pat-btn').disabled = false;
+  $('connect-pat-btn').textContent = 'Connect with PAT';
+});
+
 $('disconnect-btn').addEventListener('click', async () => {
   if (!confirm('Disconnect from GitHub?')) return;
   await sendMessage({ type: 'DISCONNECT' });
@@ -96,6 +120,17 @@ $('save-oauth-btn').addEventListener('click', async () => {
     showToast('OAuth settings saved', 'success');
   } catch (e) {
     showToast(e.message, 'error');
+  }
+});
+
+$('copy-callback-btn').addEventListener('click', async () => {
+  const value = $('oauth-callback-url').value;
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast('Callback URL copied', 'success');
+  } catch (e) {
+    $('oauth-callback-url').select();
+    showToast('Callback URL selected', '');
   }
 });
 
@@ -239,7 +274,22 @@ function getStorage(keys) {
 }
 
 function sendMessage(msg) {
-  return new Promise(resolve => chrome.runtime.sendMessage(msg, res => resolve(res || {})));
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage(msg, res => {
+      if (chrome.runtime.lastError) {
+        resolve({});
+        return;
+      }
+      resolve(res || {});
+    });
+  });
+}
+
+function getOAuthRedirectUrl() {
+  if (chrome.identity?.getRedirectURL) {
+    return chrome.identity.getRedirectURL();
+  }
+  return `https://${chrome.runtime.id}.chromiumapp.org/`;
 }
 
 function escHtml(str) {

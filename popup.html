@@ -60,12 +60,6 @@
       justify-content: center;
     }
 
-    /* Styles the Font Awesome icon inside the logo box */
-    .logo-icon i {
-      font-size: 14px;
-      color: #0d1117; /* Dark color to contrast with the orange background */
-    }
-
     .logo-text {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-weight: 700;
@@ -111,6 +105,38 @@
       margin-bottom: 20px;
     }
 
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      margin: 14px 0;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      outline: none;
+      margin-bottom: 10px;
+    }
+
+    .input:focus { border-color: var(--accent2); }
+
     .btn {
       width: 100%;
       padding: 10px 16px;
@@ -123,12 +149,13 @@
       transition: all 0.15s;
     }
 
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .btn-primary {
       background: var(--accent);
       color: #0d1117;
     }
     .btn-primary:hover { filter: brightness(1.1); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .btn-secondary {
       background: var(--surface2);
@@ -539,6 +566,9 @@
       Sign in with GitHub to let LeetSync create and update your solutions repository automatically.
     </div>
     <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
+    <div class="auth-divider">or</div>
+    <input type="password" class="input" id="github-pat" placeholder="GitHub PAT" autocomplete="off" spellcheck="false" />
+    <button class="btn btn-secondary" id="connect-pat-btn">Connect with PAT</button>
   </div>
 
   <div id="main-section">
