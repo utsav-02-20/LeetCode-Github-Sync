@@ -6,8 +6,7 @@ let unsaved = false;
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const data = await getStorage(['settings', 'stats', 'syncHistory']);
-  const status = await sendMessage({ type: 'GET_STATUS' });
+  const data = await getStorage(['settings', 'stats', 'syncHistory', 'githubUser']);
   const settings = data.settings || {};
   const stats = data.stats || {};
   const history = data.syncHistory || [];
@@ -26,9 +25,9 @@ async function init() {
   $('github-token-proxy-url').value = settings.githubTokenProxyUrl || '';
   $('oauth-callback-url').value = getOAuthRedirectUrl();
 
-  // Auth state
-  if (status.connected && status.user) {
-    showConnected(status.user);
+  // Auth state: render immediately from the cached user, then verify in the background.
+  if (data.githubUser) {
+    showConnected(data.githubUser);
   } else {
     showDisconnected();
   }
@@ -47,6 +46,17 @@ async function init() {
       el.addEventListener('input', markUnsaved);
     });
   }, 100);
+
+  refreshAuthStatus();
+}
+
+async function refreshAuthStatus() {
+  const status = await sendMessage({ type: 'GET_STATUS' });
+  if (status.connected && status.user) {
+    showConnected(status.user);
+  } else {
+    showDisconnected();
+  }
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -243,7 +253,9 @@ function renderHistory(history) {
   tbody.innerHTML = history.slice(0, 200).map(item => {
     const icon = item.status === 'success'
       ? '<span class="status-ok">✅</span>'
-      : '<span class="status-err">❌</span>';
+      : item.status === 'skipped'
+        ? '<span>↷</span>'
+        : '<span class="status-err">❌</span>';
     const diff = safeClassName(item.difficulty || '');
     const time = item.timestamp ? new Date(item.timestamp).toLocaleString() : '—';
     return `

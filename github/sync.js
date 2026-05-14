@@ -4,6 +4,21 @@ import { GitHubAPI } from './api.js';
 import { getToken, getSettings, markProblemSynced, addToSyncHistory, updateStats } from '../utils/storage.js';
 import { getFilePath, formatCommitMessage, generateFileHeader, generateReadmeContent } from '../utils/naming.js';
 
+function hashText(value = '') {
+  let hash = 0;
+  const text = String(value);
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function getProblemUpdateMarker(problem = {}) {
+  if (problem.submissionId) return `submission:${problem.submissionId}`;
+  if (problem.submittedAt) return `submitted:${problem.submittedAt}`;
+  return `code:${hashText(problem.code || '')}`;
+}
+
 export class SyncManager {
   constructor() {
     this.queue = [];
@@ -33,7 +48,8 @@ export class SyncManager {
 
     // Build code with header
     const header = generateFileHeader(problem);
-    const fullCode = header + (problem.code || '');
+    const updateMarker = getProblemUpdateMarker(problem);
+    const fullCode = `${header}/* LeetSync Update Marker: ${updateMarker} */\n${problem.code || ''}`;
 
     // Get file path
     const filePath = getFilePath(problem, settings);
@@ -45,33 +61,67 @@ export class SyncManager {
     );
 
     // Upload solution
-    await this.api.createOrUpdateFile(
+    const fileResult = await this.api.appendOrSkipFile(
       this.owner,
       repoName,
       filePath,
       fullCode,
       commitMsg,
-      branch
+      branch,
+      { marker: updateMarker, skipIfContains: problem.code || '' }
     );
+
+    if (fileResult?.skipped) {
+      await markProblemSynced(problem.id, {
+        title: problem.title,
+        language: problem.language,
+        filePath,
+        difficulty: problem.difficulty,
+        updateMarker,
+        skipped: true
+      });
+
+      await addToSyncHistory({
+        id: problem.id,
+        title: problem.title,
+        language: problem.language,
+        difficulty: problem.difficulty,
+        filePath,
+        repoName,
+        status: 'skipped',
+        updateMarker,
+        skipped: true
+      });
+
+      return { filePath, repoName, owner: this.owner, skipped: true };
+    }
 
     // Update README
     const stats = await updateStats(problem.difficulty, problem.language);
     const readmeContent = generateReadmeContent(stats, repoName);
-    await this.api.createOrUpdateFile(
-      this.owner,
-      repoName,
-      'README.md',
-      readmeContent,
-      `chore: update README stats`,
-      branch
-    );
+    let readmeWarning = null;
+    try {
+      await this.api.createOrUpdateFile(
+        this.owner,
+        repoName,
+        'README.md',
+        readmeContent,
+        `chore: update README stats`,
+        branch
+      );
+    } catch (error) {
+      readmeWarning = error.message || 'README update failed';
+      console.warn('[LeetSync] README update skipped:', error);
+    }
 
     // Record sync
     await markProblemSynced(problem.id, {
       title: problem.title,
       language: problem.language,
       filePath,
-      difficulty: problem.difficulty
+      difficulty: problem.difficulty,
+      updateMarker,
+      skipped: !!fileResult?.skipped
     });
 
     await addToSyncHistory({
@@ -81,10 +131,12 @@ export class SyncManager {
       difficulty: problem.difficulty,
       filePath,
       repoName,
-      status: 'success'
+      status: 'success',
+      updateMarker,
+      skipped: !!fileResult?.skipped
     });
 
-    return { filePath, repoName, owner: this.owner };
+    return { filePath, repoName, owner: this.owner, readmeWarning, skipped: !!fileResult?.skipped };
   }
 
   async enqueue(problem) {

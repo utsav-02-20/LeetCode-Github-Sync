@@ -1,5 +1,5 @@
 import { GitHubAPI, isRateLimited, isUnauthorized } from './github/api.js';
-import { getToken, saveToken, clearToken, getSettings, saveSettings, addToSyncHistory, updateStats, markProblemSynced } from './utils/storage.js';
+import { Storage, getToken, saveToken, clearToken, getSettings, saveSettings, addToSyncHistory, updateStats, markProblemSynced } from './utils/storage.js';
 import { getFilePath, formatCommitMessage, generateFileHeader, generateReadmeContent } from './utils/naming.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -131,6 +131,16 @@ function getPublicSettings(settings = {}) {
   return safeSettings;
 }
 
+function getPublicUser(user) {
+  return user ? { login: cleanText(user.login, 120), avatar_url: user.avatar_url } : null;
+}
+
+async function cacheGithubUser(user) {
+  const publicUser = getPublicUser(user);
+  if (publicUser) await Storage.set({ githubUser: publicUser });
+  return publicUser;
+}
+
 function sanitizeProblem(problem = {}) {
   const code = String(problem.code || '');
   if (!code || code.length > MAX_CODE_LENGTH) return null;
@@ -154,6 +164,7 @@ function sanitizeProblem(problem = {}) {
     runtime: cleanText(problem.runtime || '', 40),
     memory: cleanText(problem.memory || '', 40),
     submissionId: cleanText(problem.submissionId || '', 80),
+    submittedAt: cleanText(problem.submittedAt || '', 80),
     code
   };
 }
@@ -166,6 +177,21 @@ function summarizeProblem(problem = {}) {
     language: problem.language,
     slug: problem.slug
   };
+}
+
+function hashText(value = '') {
+  let hash = 0;
+  const text = String(value);
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function getProblemUpdateMarker(problem = {}) {
+  if (problem.submissionId) return `submission:${problem.submissionId}`;
+  if (problem.submittedAt) return `submitted:${problem.submittedAt}`;
+  return `code:${hashText(problem.code || '')}`;
 }
 
 /**
@@ -209,8 +235,9 @@ async function launchOAuthFlow() {
         
         const api = new GitHubAPI(token);
         const user = await api.getUser();
+        const publicUser = await cacheGithubUser(user);
         
-        resolve({ valid: true, user: { login: user.login, avatar_url: user.avatar_url } });
+        resolve({ valid: true, user: publicUser });
       } catch (err) {
         reject(err);
       }
@@ -248,8 +275,9 @@ async function connectWithPat(rawToken) {
   const api = new GitHubAPI(token);
   const user = await api.getUser();
   await saveToken(token);
+  const publicUser = await cacheGithubUser(user);
 
-  return { valid: true, user: { login: user.login, avatar_url: user.avatar_url } };
+  return { valid: true, user: publicUser };
 }
 
 // ─── Sync Queue ───────────────────────────────────────────────────────────────
@@ -328,21 +356,58 @@ async function syncToGitHub(problem) {
   await api.ensureRepo(owner, repoName, false);
 
   const header = generateFileHeader(problem);
-  const fullCode = header + (problem.code || '');
   const filePath = getFilePath(problem, settings);
   const commitMsg = formatCommitMessage(settings.commitTemplate, problem);
+  const updateMarker = getProblemUpdateMarker(problem);
+  const fullCode = `${header}/* LeetSync Update Marker: ${updateMarker} */\n${problem.code || ''}`;
 
-  await api.createOrUpdateFile(owner, repoName, filePath, fullCode, commitMsg, branch);
+  const fileResult = await api.appendOrSkipFile(owner, repoName, filePath, fullCode, commitMsg, branch, {
+    marker: updateMarker,
+    skipIfContains: problem.code || ''
+  });
+
+  if (fileResult?.skipped) {
+    await markProblemSynced(problem.id, {
+      title: problem.title,
+      language: problem.language,
+      difficulty: problem.difficulty,
+      filePath,
+      updateMarker,
+      skipped: true
+    });
+
+    await addToSyncHistory({
+      id: problem.id,
+      title: problem.title,
+      language: problem.language,
+      difficulty: problem.difficulty,
+      repoName,
+      status: 'skipped',
+      filePath,
+      updateMarker,
+      skipped: true
+    });
+
+    return { filePath, repoName, owner, skipped: true };
+  }
 
   const stats = await updateStats(problem.difficulty, problem.language);
   const readmeContent = generateReadmeContent(stats, repoName);
-  await api.createOrUpdateFile(owner, repoName, 'README.md', readmeContent, 'chore: update README', branch);
+  let readmeWarning = null;
+  try {
+    await api.createOrUpdateFile(owner, repoName, 'README.md', readmeContent, 'chore: update README', branch);
+  } catch (error) {
+    readmeWarning = error.message || 'README update failed';
+    console.warn('[LeetSync BG] README update skipped:', error);
+  }
 
   await markProblemSynced(problem.id, {
     title: problem.title,
     language: problem.language,
     difficulty: problem.difficulty,
-    filePath
+    filePath,
+    updateMarker,
+    skipped: !!fileResult?.skipped
   });
 
   await addToSyncHistory({
@@ -352,10 +417,12 @@ async function syncToGitHub(problem) {
     difficulty: problem.difficulty,
     repoName,
     status: 'success',
-    filePath
+    filePath,
+    updateMarker,
+    skipped: !!fileResult?.skipped
   });
 
-  return { filePath, repoName, owner };
+  return { filePath, repoName, owner, readmeWarning, skipped: !!fileResult?.skipped };
 }
 
 // ─── Backup Logic ─────────────────────────────────────────────────────────────
@@ -365,6 +432,7 @@ async function handleFullBackup(sendResponse) {
     sendResponse({ ok: false, error: 'A sync process is already running.' });
     return;
   }
+  isSyncing = true;
   cancelBackupFlag = false;
 
   try {
@@ -409,11 +477,22 @@ async function handleFullBackup(sendResponse) {
       await new Promise(r => setTimeout(r, 400));
     }
 
-    if (cancelBackupFlag || submissionsToSync.length === 0) return;
+    if (cancelBackupFlag) {
+      broadcastToPopup({ type: 'BACKUP_STOPPED' });
+      return;
+    }
+
+    if (submissionsToSync.length === 0) {
+      broadcastToPopup({ type: 'BACKUP_COMPLETE', total: 0 });
+      return;
+    }
 
     submissionsToSync.reverse();
-    for (const item of submissionsToSync) {
+    broadcastToPopup({ type: 'BACKUP_STARTED', total: submissionsToSync.length });
+
+    for (let i = 0; i < submissionsToSync.length; i++) {
       if (cancelBackupFlag) break;
+      const item = submissionsToSync[i];
       const { sub, meta } = item;
       const problemObj = {
         id: meta.id || '0000',
@@ -422,10 +501,17 @@ async function handleFullBackup(sendResponse) {
         difficulty: meta.difficulty,
         language: sub.lang,
         code: sub.code,
-        submissionId: sub.id
+        submissionId: sub.id,
+        submittedAt: sub.timestamp
       };
 
       await syncToGitHub(problemObj);
+      broadcastToPopup({
+        type: 'BACKUP_PROGRESS',
+        current: i + 1,
+        total: submissionsToSync.length,
+        problem: summarizeProblem(problemObj)
+      });
 
       remoteLog.problems[problemObj.id] = {
         submission_id: sub.id,
@@ -433,11 +519,22 @@ async function handleFullBackup(sendResponse) {
       };
     }
 
+    if (cancelBackupFlag) {
+      broadcastToPopup({ type: 'BACKUP_STOPPED' });
+      return;
+    }
+
     remoteLog.last_sync = Date.now();
     await api.createOrUpdateFile(user.login, settings.repoName, 'sync_log.json', JSON.stringify(remoteLog, null, 2), 'chore: update sync log', settings.branch);
+    broadcastToPopup({ type: 'BACKUP_COMPLETE', total: submissionsToSync.length });
 
   } catch (error) {
     console.error('[LeetSync BG] Backup failed:', error);
+    broadcastToPopup({ type: 'BACKUP_FAILED', error: error.message });
+  } finally {
+    isSyncing = false;
+    cancelBackupFlag = false;
+    processSyncQueue();
   }
 }
 
@@ -508,7 +605,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.type === 'DISCONNECT') {
-    clearToken().then(() => sendResponse({ ok: true }));
+    Promise.all([clearToken(), Storage.remove(['githubUser'])]).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (message.type === 'SAVE_SETTINGS') {
@@ -540,12 +637,13 @@ async function getStatus() {
   let user = null;
   if (token) {
     try {
-      user = await new GitHubAPI(token).getUser();
+      user = await cacheGithubUser(await new GitHubAPI(token).getUser());
     } catch (e) {}
   }
+  if (!user) await Storage.remove(['githubUser']);
   return {
     connected: !!user,
-    user: user ? { login: user.login, avatar_url: user.avatar_url } : null,
+    user,
     settings: getPublicSettings(settings),
     queueSize: syncQueue.length,
     syncing: isSyncing
@@ -558,7 +656,7 @@ function notifySuccess(problem, result) {
   chrome.notifications.create(`sync_${problem.id}_${Date.now()}`, {
     type: 'basic',
     iconUrl: 'icons/icon48.png',
-    title: '✅ LeetCode Synced!',
+    title: result?.skipped ? 'LeetCode Already Synced' : '✅ LeetCode Synced!',
     message: `${cleanText(problem.id, 40)}. ${cleanText(problem.title, 120)}\n→ ${cleanText(result.repoName, 100)}/${cleanText(result.filePath, 180)}`
   });
 }

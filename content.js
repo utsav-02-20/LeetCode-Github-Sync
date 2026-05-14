@@ -128,6 +128,8 @@
       language: submissionData.lang || extractLanguageFromPage(),
       runtime: submissionData.runtimeDisplay || submissionData.runtime,
       memory: submissionData.memoryDisplay || submissionData.memory,
+      submissionId,
+      submittedAt: submissionData.timestamp || submissionData.submitTime || submissionData.createdAt,
       code: submissionData.code || extractCodeFromEditor()
     };
 

@@ -7,12 +7,11 @@ let state = { connected: false, user: null, settings: {}, stats: {}, history: []
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const status = await sendMessage({ type: 'GET_STATUS' });
-  const storage = await getStorageLocal(['stats', 'syncHistory', 'settings']);
+  const storage = await getStorageLocal(['stats', 'syncHistory', 'settings', 'githubUser']);
 
-  state.connected = status.connected;
-  state.user = status.user;
-  state.settings = status.settings || {};
+  state.connected = !!storage.githubUser;
+  state.user = storage.githubUser || null;
+  state.settings = storage.settings || {};
   state.stats = storage.stats || {};
   state.history = storage.syncHistory || [];
 
@@ -21,6 +20,22 @@ async function init() {
   if (state.connected && state.user) {
     showDashboard();
   } else {
+    $('auth-section').style.display = 'block';
+  }
+
+  refreshAuthStatus();
+}
+
+async function refreshAuthStatus() {
+  const status = await sendMessage({ type: 'GET_STATUS' });
+  state.connected = !!status.connected;
+  state.user = status.user || null;
+  state.settings = status.settings || state.settings || {};
+
+  if (state.connected && state.user) {
+    showDashboard();
+  } else {
+    $('main-section').style.display = 'none';
     $('auth-section').style.display = 'block';
   }
 }
@@ -86,7 +101,7 @@ function renderHistory() {
   }
 
   list.innerHTML = history.map(item => {
-    const icon = item.status === 'success' ? '✅' : '❌';
+    const icon = item.status === 'success' ? '✅' : item.status === 'skipped' ? '↷' : '❌';
     const diff = safeClassName(item.difficulty || '');
     const time = formatTime(item.timestamp);
     return `
@@ -215,6 +230,44 @@ $('backup-btn').addEventListener('click', async () => {
 // ─── Live Updates ─────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'BACKUP_STARTED') {
+    showToast(`Backup started: ${safeNumber(msg.total)} solution(s) queued.`, '');
+  }
+
+  if (msg.type === 'BACKUP_PROGRESS') {
+    $('backup-btn').textContent = `${safeNumber(msg.current)}/${safeNumber(msg.total)}`;
+  }
+
+  if (msg.type === 'BACKUP_COMPLETE') {
+    isManualBackupRunning = false;
+    $('backup-btn').textContent = 'Backup';
+    $('backup-btn').classList.replace('btn-danger', 'btn-secondary');
+    $('sync-indicator').style.display = 'none';
+    getStorageLocal(['stats', 'syncHistory']).then(data => {
+      state.stats = data.stats || {};
+      state.history = data.syncHistory || [];
+      renderStats();
+      renderHistory();
+    });
+    showToast(safeNumber(msg.total) ? `Backup complete: ${safeNumber(msg.total)} synced.` : 'Backup complete: nothing new to sync.', 'success');
+  }
+
+  if (msg.type === 'BACKUP_STOPPED') {
+    isManualBackupRunning = false;
+    $('backup-btn').textContent = 'Backup';
+    $('backup-btn').classList.replace('btn-danger', 'btn-secondary');
+    $('sync-indicator').style.display = 'none';
+    showToast('Backup stopped.', '');
+  }
+
+  if (msg.type === 'BACKUP_FAILED') {
+    isManualBackupRunning = false;
+    $('backup-btn').textContent = 'Backup';
+    $('backup-btn').classList.replace('btn-danger', 'btn-secondary');
+    $('sync-indicator').style.display = 'none';
+    showToast(`Backup failed: ${msg.error || 'Unknown error'}`, 'error');
+  }
+
   if (msg.type === 'SYNC_COMPLETE') {
     // Refresh
     getStorageLocal(['stats', 'syncHistory']).then(data => {

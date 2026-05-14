@@ -9,6 +9,35 @@ function encodeContentPath(path) {
     .join('/');
 }
 
+function encodeFileContent(content) {
+  return btoa(unescape(encodeURIComponent(content)));
+}
+
+function decodeFileContent(file) {
+  if (!file?.content || file.encoding !== 'base64') return '';
+  const base64 = file.content.replace(/\s/g, '');
+  return decodeURIComponent(
+    atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+  );
+}
+
+function buildAppendContent(existingContent, newContent, marker) {
+  const separator = [
+    '',
+    '',
+    '/*',
+    ' * ------------------------------------------------------------',
+    ' * LeetSync appended newer accepted solution',
+    marker ? ` * LeetSync Update Marker: ${marker}` : '',
+    ` * Appended At: ${new Date().toISOString()}`,
+    ' * ------------------------------------------------------------',
+    ' */',
+    ''
+  ].filter(line => line !== '').join('\n');
+
+  return `${existingContent.replace(/\s+$/g, '')}${separator}${newContent}`;
+}
+
 export class GitHubAPI {
   constructor(token) {
     this.token = token;
@@ -76,21 +105,110 @@ export class GitHubAPI {
     return await res.json();
   }
 
-  async createOrUpdateFile(owner, repo, path, content, message, branch = 'main') {
-    const existing = await this.getFile(owner, repo, path, branch);
-    const encoded = btoa(unescape(encodeURIComponent(content)));
+  async resolveContentPath(owner, repo, path, branch = 'main') {
+    const parts = String(path || '').split('/').filter(Boolean);
+    if (!parts.length) return path;
 
-    const body = {
-      message,
-      content: encoded,
-      branch
-    };
+    let currentPath = '';
+    const resolved = [];
 
-    if (existing && existing.sha) {
-      body.sha = existing.sha;
+    for (const part of parts) {
+      const listPath = currentPath ? `${currentPath}` : '';
+      const url = `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(listPath)}?ref=${encodeURIComponent(branch)}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `token ${this.token}` }
+      });
+
+      if (!res.ok) return path;
+
+      const entries = await res.json();
+      if (!Array.isArray(entries)) return path;
+
+      const match = entries.find(entry => entry.name.toLowerCase() === part.toLowerCase());
+      resolved.push(match ? match.name : part);
+      currentPath = resolved.join('/');
     }
 
-    return this.request('PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(path)}`, body);
+    return resolved.join('/');
+  }
+
+  isShaConflict(error) {
+    return error?.status === 409 || /sha.*match|does not match/i.test(error?.message || '');
+  }
+
+  isAlreadyExistsConflict(error) {
+    return error?.status === 422 && /already exists/i.test(error?.message || '');
+  }
+
+  async createOrUpdateFile(owner, repo, path, content, message, branch = 'main') {
+    const encoded = encodeFileContent(content);
+    let targetPath = await this.resolveContentPath(owner, repo, path, branch);
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await this.getFile(owner, repo, targetPath, branch);
+      const body = {
+        message,
+        content: encoded,
+        branch
+      };
+
+      if (existing && existing.sha) {
+        body.sha = existing.sha;
+      }
+
+      try {
+        return await this.request('PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(targetPath)}`, body);
+      } catch (error) {
+        if (!this.isShaConflict(error) || attempt === 2) throw error;
+        targetPath = await this.resolveContentPath(owner, repo, path, branch);
+        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+      }
+    }
+  }
+
+  async appendOrSkipFile(owner, repo, path, content, message, branch = 'main', options = {}) {
+    let targetPath = await this.resolveContentPath(owner, repo, path, branch);
+    const marker = options.marker || '';
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await this.getFile(owner, repo, targetPath, branch);
+      let finalContent = content;
+      const body = {
+        message,
+        content: '',
+        branch
+      };
+
+      if (existing) {
+        if (existing.type && existing.type !== 'file') {
+          throw new GitHubError(409, `${targetPath} already exists but is not a file.`);
+        }
+
+        const existingContent = decodeFileContent(existing);
+        const skipIfContains = String(options.skipIfContains || '').trim();
+        if (marker && existingContent.includes(`LeetSync Update Marker: ${marker}`)) {
+          return { skipped: true, path: targetPath, sha: existing.sha };
+        }
+
+        if (skipIfContains && existingContent.includes(skipIfContains)) {
+          return { skipped: true, path: targetPath, sha: existing.sha };
+        }
+
+        finalContent = buildAppendContent(existingContent, content, marker);
+        if (existing.sha) body.sha = existing.sha;
+      }
+
+      body.content = encodeFileContent(finalContent);
+
+      try {
+        const result = await this.request('PUT', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeContentPath(targetPath)}`, body);
+        return { skipped: false, path: targetPath, result };
+      } catch (error) {
+        if ((!this.isShaConflict(error) && !this.isAlreadyExistsConflict(error)) || attempt === 2) throw error;
+        targetPath = await this.resolveContentPath(owner, repo, path, branch);
+        await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+      }
+    }
   }
 
   async listBranches(owner, repo) {
