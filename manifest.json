@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "LeetSync - Smart LeetCode to GitHub Sync",
+  "version": "1.0.1",
+  "description": "Automatically sync LeetCode solutions to GitHub with secure authentication and professional organization.",
+  "author": "Your Name/Organization",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LeetSync Dashboard"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.github.com https://github.com https://leetcode.com https://*.vercel.app; img-src 'self' https://avatars.githubusercontent.com https://*.githubusercontent.com data:;"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/problems/*",
+        "https://leetcode.com/submissions/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "storage",
+    "notifications",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://github.com/*",
+    "https://*.vercel.app/*",
+    "https://leetcode.com/*",
+    "https://api.github.com/*"
+  ],
+  "options_page": "settings.html"
+}

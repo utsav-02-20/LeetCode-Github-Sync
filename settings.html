@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetSync Settings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #f0883e;
+      --accent2: #58a6ff;
+      --success: #3fb950;
+      --danger: #f85149;
+      --easy: #3fb950;
+      --medium: #f0883e;
+      --hard: #f85149;
+      --radius: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    .layout {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #f8c471);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #0d1117; /* High contrast for the bolt icon */
+    }
+
+    .page-title {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .page-title span { color: var(--accent); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+      width: fit-content;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    /* ── Tab Content ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header i {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .card-body { padding: 18px; }
+
+    /* ── Form Fields ── */
+    .field-group {
+      margin-bottom: 16px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .field-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input:focus { border-color: var(--accent2); }
+
+    .input-mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    select.input {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-row:last-child { margin-bottom: 0; }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--surface2);
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      transition: 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--muted);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle input:checked + .toggle-slider::before {
+      left: 20px;
+      background: #0d1117;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent2); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-danger:hover { background: rgba(248, 81, 73, 0.1); }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+
+    /* ── Analytics ── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .metric-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Language Chart ── */
+    
+    .lang-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .lang-bar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .lang-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      width: 80px;
+      color: var(--muted);
+    }
+
+    .lang-track {
+      flex: 1;
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .lang-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent2);
+    }
+
+    .lang-count {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: var(--text);
+      width: 24px;
+      text-align: right;
+    }
+
+    /* ── History Table ── */
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .history-table th {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr:hover td { background: var(--surface2); }
+
+    .status-ok { color: var(--success); }
+    .status-err { color: var(--danger); }
+
+    .diff-badge {
+      font-size: 10px;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-weight: 600;
+    }
+
+    .diff-easy { color: var(--easy); background: rgba(63,185,80,0.1); }
+    .diff-medium { color: var(--medium); background: rgba(240,136,62,0.1); }
+    .diff-hard { color: var(--hard); background: rgba(248,81,73,0.1); }
+
+    .lang-chip {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px 6px;
+      color: var(--accent2);
+    }
+
+    /* ── Empty / Toast ── */
+    .empty { text-align: center; padding: 40px; color: var(--muted); }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      font-size: 13px;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 100;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--success); }
+    #toast.error { border-color: var(--danger); }
+
+    .save-bar {
+      position: sticky;
+      bottom: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 14px 0;
+      margin-top: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .unsaved-badge {
+      font-size: 11px;
+      color: var(--warn);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <div class="page-header">
+    <div class="logo-icon">
+      <span aria-hidden="true" style="color: rgb(240, 160, 77); font-size: 28px; line-height: 1;">⚡</span>
+    </div>
+    <div>
+      <div class="page-title">Leet<span>Sync</span> Settings</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Analytics</button>
+    <button class="tab-btn" data-tab="github"><i class="fa-brands fa-github"></i> GitHub</button>
+    <button class="tab-btn" data-tab="sync"><i class="fa-solid fa-sliders"></i> Sync</button>
+    <button class="tab-btn" data-tab="history"><i class="fa-solid fa-list-ul"></i> History</button>
+  </div>
+
+  <div class="tab-content active" id="tab-analytics">
+
+    <div class="analytics-grid">
+      <div class="metric-card">
+        <div class="metric-value" id="a-total" style="color:var(--text)">0</div>
+        <div class="metric-label">Total Synced</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="a-easy" style="color:var(--easy)">0</div>
+        <div class="metric-label">Easy</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="a-medium" style="color:var(--medium)">0</div>
+        <div class="metric-label">Medium</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value" id="a-hard" style="color:var(--hard)">0</div>
+        <div class="metric-label">Hard</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-code"></i>
+        <div class="card-title">Language Breakdown</div>
+      </div>
+      <div class="card-body">
+        <div class="lang-bars" id="lang-bars">
+          <div class="empty">No data yet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-fire"></i>
+        <div class="card-title">Streak Info</div>
+      </div>
+      <div class="card-body" style="display:flex;gap:32px">
+        <div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:36px;font-weight:700;color:var(--accent)" id="a-streak">0</div>
+          <div style="font-size:12px;color:var(--muted)">Day Streak</div>
+        </div>
+        <div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:36px;font-weight:700;color:var(--accent2)" id="a-last">—</div>
+          <div style="font-size:12px;color:var(--muted)">Last Sync</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tab-content" id="tab-github">
+
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-key"></i>
+        <div class="card-title">Authentication</div>
+      </div>
+      <div class="card-body">
+        <div id="gh-connected" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <img id="gh-avatar" width="36" height="36" style="border-radius:50%;border:2px solid var(--success)" />
+            <div>
+              <div style="font-weight:600" id="gh-login"></div>
+              <div style="font-size:11px;color:var(--success)">● Connected</div>
+            </div>
+          </div>
+          <button class="btn btn-danger" id="disconnect-btn">Disconnect GitHub</button>
+        </div>
+        <div id="gh-disconnected">
+          <div class="field-group">
+            <label class="field-label">GitHub OAuth Client ID</label>
+            <input type="text" class="input input-mono" id="github-client-id" placeholder="Ov23li..." />
+            <div class="field-desc">Create this in GitHub Developer settings under OAuth Apps.</div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Token Proxy URL</label>
+            <input type="url" class="input input-mono" id="github-token-proxy-url" placeholder="https://your-app.vercel.app/api/token" />
+            <div class="field-desc">Backend endpoint that exchanges the GitHub authorization code for an access token.</div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">OAuth Callback URL</label>
+            <input type="text" class="input input-mono" id="oauth-callback-url" readonly />
+            <div class="field-desc">Add this exact URL to your GitHub OAuth app callback URL.</div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="save-oauth-btn">Save OAuth Settings</button>
+            <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-folder-open"></i>
+        <div class="card-title">Repository Settings</div>
+      </div>
+      <div class="card-body">
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">Repository Name</label>
+            <input type="text" class="input" id="repo-name" value="LeetCode-Solutions" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Branch</label>
+            <input type="text" class="input input-mono" id="branch" value="main" />
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Auto-create repository</div>
+            <div style="font-size:11px;color:var(--muted)">Create the repo if it doesn't exist</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="auto-create" checked><div class="toggle-slider"></div></label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tab-content" id="tab-sync">
+
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-bolt-lightning"></i><div class="card-title">Sync Behaviour</div></div>
+      <div class="card-body">
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Auto Sync</div>
+            <div style="font-size:11px;color:var(--muted)">Automatically push every accepted solution</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-auto-sync" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Accepted Only</div>
+            <div style="font-size:11px;color:var(--muted)">Only sync submissions with "Accepted" verdict</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-accepted-only" checked><div class="toggle-slider"></div></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-sitemap"></i><div class="card-title">File Organisation</div></div>
+      <div class="card-body">
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">Folder Organization</label>
+            <select class="input" id="s-folder-org">
+              <option value="topic">By Topic (Arrays, DP, Trees…)</option>
+              <option value="difficulty">By Difficulty</option>
+              <option value="language">By Language</option>
+              <option value="flat">Flat (no folders)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">File Naming</label>
+            <select class="input" id="s-naming">
+              <option value="padded">0048_Rotate_Image.cpp</option>
+              <option value="plain">48. Rotate Image.cpp</option>
+              <option value="slug">Rotate_Image.cpp</option>
+            </select>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Include Difficulty in Filename</div>
+            <div style="font-size:11px;color:var(--muted)">e.g. 0048_Rotate_Image_Medium.cpp</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-include-diff"><div class="toggle-slider"></div></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-comment-dots"></i><div class="card-title">Commit Message Template</div></div>
+      <div class="card-body">
+        <div class="field-group">
+          <input type="text" class="input input-mono" id="s-commit-tmpl" value="Solved: {id}. {title} [{language}]" />
+          <div class="field-desc">Variables: <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px">{id} {title} {language} {difficulty} {runtime} {memory}</code></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+      <span class="unsaved-badge" id="unsaved-badge">● Unsaved changes</span>
+    </div>
+
+  </div>
+
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <div class="card-title">Sync History</div>
+        <button class="btn btn-secondary" style="margin-left:auto;padding:5px 10px;font-size:11px" id="clear-history-btn">Clear</button>
+      </div>
+      <div id="history-container">
+        <table class="history-table" id="history-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Problem</th>
+              <th>Language</th>
+              <th>Difficulty</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="settings.js"></script>
+</body>
+</html>

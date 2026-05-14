@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetSync</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #f0883e;
+      --accent2: #58a6ff;
+      --success: #3fb950;
+      --danger: #f85149;
+      --warn: #d29922;
+      --easy: #3fb950;
+      --medium: #f0883e;
+      --hard: #f85149;
+      --radius: 8px;
+    }
+
+    body {
+      width: 380px;
+      min-height: 480px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--accent), #f8c471);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Styles the Font Awesome icon inside the logo box */
+    .logo-icon i {
+      font-size: 14px;
+      color: #0d1117; /* Dark color to contrast with the orange background */
+    }
+
+    .logo-text {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .settings-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      font-size: 16px;
+    }
+    .settings-btn:hover { color: var(--text); }
+
+    /* ── Auth Section ── */
+    #auth-section {
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    .auth-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .auth-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .auth-desc {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      border: none;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0d1117;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent2); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-danger:hover { background: rgba(248, 81, 73, 0.1); }
+
+    .btn-sm {
+      width: auto;
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+
+    .link {
+      color: var(--accent2);
+      text-decoration: none;
+      font-size: 11px;
+    }
+    .link:hover { text-decoration: underline; }
+
+    /* ── Main Dashboard ── */
+    #main-section { display: none; }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--success);
+      object-fit: cover;
+    }
+
+    .user-info { flex: 1; }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .user-status {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--success);
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .repo-badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      color: var(--accent2);
+    }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 0;
+    }
+
+    .stat-cell {
+      background: var(--surface);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    .val-easy { color: var(--easy); }
+    .val-medium { color: var(--medium); }
+    .val-hard { color: var(--hard); }
+    .val-total { color: var(--text); }
+
+    /* ── Difficulty Bar ── */
+    .diff-bar-container {
+      padding: 10px 16px 6px;
+    }
+
+    .diff-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .diff-bar-label {
+      font-size: 10px;
+      color: var(--muted);
+      width: 44px;
+      text-transform: uppercase;
+    }
+
+    .diff-bar-track {
+      flex: 1;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .diff-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    .diff-bar-count {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      color: var(--muted);
+      width: 24px;
+      text-align: right;
+    }
+
+    /* ── Toggle ── */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-info { flex: 1; }
+
+    .setting-name {
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .setting-desc {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--surface2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      transition: 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--muted);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle input:checked + .toggle-slider::before {
+      left: 18px;
+      background: #0d1117;
+    }
+
+    /* ── Recent Syncs ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 6px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sync-list {
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .sync-list::-webkit-scrollbar { width: 3px; }
+    .sync-list::-webkit-scrollbar-track { background: transparent; }
+    .sync-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sync-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .sync-status {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .sync-info { flex: 1; min-width: 0; }
+
+    .sync-title {
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sync-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .lang-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 9px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--accent2);
+    }
+
+    .diff-badge {
+      font-size: 9px;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .diff-easy { color: var(--easy); background: rgba(63, 185, 80, 0.1); }
+    .diff-medium { color: var(--medium); background: rgba(240, 136, 62, 0.1); }
+    .diff-hard { color: var(--hard); background: rgba(248, 81, 73, 0.1); }
+
+    .sync-time {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-state p { font-size: 12px; line-height: 1.5; }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+    }
+
+    .syncing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--accent2);
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Loading ── */
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12px;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 100;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--success); }
+    #toast.error { border-color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <span aria-hidden="true" style="color: rgb(240, 160, 77); font-size: 22px; line-height: 1;">⚡</span>
+      </div>
+      <div class="logo-text">Leet<span>Sync</span></div>
+    </div>
+    <button class="settings-btn" id="open-settings" title="Settings">⚙</button>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    Loading…
+  </div>
+
+  <div id="auth-section" style="display:none">
+    <div class="auth-icon">🔗</div>
+    <div class="auth-title">Connect GitHub</div>
+    <div class="auth-desc">
+      Sign in with GitHub to let LeetSync create and update your solutions repository automatically.
+    </div>
+    <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
+  </div>
+
+  <div id="main-section">
+
+    <div class="user-card">
+      <img class="avatar" id="user-avatar" src="" alt="avatar" />
+      <div class="user-info">
+        <div class="user-name" id="user-name">Loading...</div>
+        <div class="user-status">
+          <div class="dot"></div>
+          Connected to GitHub
+        </div>
+      </div>
+      <div class="repo-badge" id="repo-name">LeetCode-Solutions</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-value val-total" id="stat-total">0</div>
+        <div class="stat-label">Synced</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-streak" style="color:var(--accent)">0</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-today" style="color:var(--accent2)">0</div>
+        <div class="stat-label">Today</div>
+      </div>
+    </div>
+
+    <div class="diff-bar-container">
+      <div class="diff-bar-row">
+        <div class="diff-bar-label">Easy</div>
+        <div class="diff-bar-track"><div class="diff-bar-fill" id="bar-easy" style="background:var(--easy);width:0%"></div></div>
+        <div class="diff-bar-count val-easy" id="cnt-easy">0</div>
+      </div>
+      <div class="diff-bar-row">
+        <div class="diff-bar-label">Medium</div>
+        <div class="diff-bar-track"><div class="diff-bar-fill" id="bar-medium" style="background:var(--medium);width:0%"></div></div>
+        <div class="diff-bar-count val-medium" id="cnt-medium">0</div>
+      </div>
+      <div class="diff-bar-row">
+        <div class="diff-bar-label">Hard</div>
+        <div class="diff-bar-track"><div class="diff-bar-fill" id="bar-hard" style="background:var(--hard);width:0%"></div></div>
+        <div class="diff-bar-count val-hard" id="cnt-hard">0</div>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-name">Auto Sync</div>
+        <div class="setting-desc">Automatically push accepted solutions</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="auto-sync-toggle" checked>
+        <div class="toggle-slider"></div>
+      </label>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Recent Syncs</div>
+      <button class="btn btn-secondary btn-sm" id="view-all-btn">View all</button>
+    </div>
+
+    <div class="sync-list" id="sync-list">
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        <p>No syncs yet.<br>Solve a LeetCode problem to get started!</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="syncing-indicator" id="sync-indicator" style="display:none">
+        <div class="spinner"></div>
+        Syncing…
+      </div>
+      <button class="btn btn-secondary btn-sm" id="backup-btn" style="margin-left: auto; margin-right: 8px;">Backup</button>
+      <button class="btn btn-danger btn-sm" id="disconnect-btn">Disconnect</button>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
