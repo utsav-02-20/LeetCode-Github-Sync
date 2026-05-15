@@ -84,8 +84,11 @@ export class GitHubAPI {
     return this.request('GET', `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
   }
 
-  async createRepo(name, isPrivate = false) {
-    return this.request('POST', '/user/repos', {
+  async createRepo(name, isPrivate = false, owner = null, currentUser = null) {
+    const createPath = owner && currentUser && owner !== currentUser
+      ? `/orgs/${encodeURIComponent(owner)}/repos`
+      : '/user/repos';
+    return this.request('POST', createPath, {
       name,
       description: 'LeetCode solutions auto-synced via Chrome Extension',
       private: isPrivate,
@@ -93,12 +96,29 @@ export class GitHubAPI {
     });
   }
 
-  async ensureRepo(owner, repoName, isPrivate = false) {
+  async ensureRepo(owner, repoName, isPrivate = false, currentUser = null) {
     try {
       return await this.getRepo(owner, repoName);
     } catch (e) {
       if (e.status === 404) {
-        return await this.createRepo(repoName, isPrivate);
+        try {
+          return await this.createRepo(repoName, isPrivate, owner, currentUser);
+        } catch (createError) {
+          // If create raced with another process, try a final read before failing.
+          if (createError?.status === 422) {
+            try {
+              return await this.getRepo(owner, repoName);
+            } catch (_) {
+              // fall through to enriched error below
+            }
+          }
+          const hint = 'Auto-create failed. Check that the repo owner is your personal account and your token can create repos.';
+          throw new GitHubError(
+            createError?.status || 500,
+            `${createError?.message || 'Repository creation failed.'} ${hint}`,
+            createError?.data || {}
+          );
+        }
       }
       throw e;
     }

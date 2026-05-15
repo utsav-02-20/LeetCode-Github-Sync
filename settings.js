@@ -247,8 +247,15 @@ $('test-repo-btn').addEventListener('click', async () => {
     showToast(validationError, 'error');
     return;
   }
+  const currentRepoSettings = {
+    repoName: $('repo-name').value.trim() || 'LeetCode-Solutions',
+    branch: $('branch').value.trim() || 'main',
+    autoCreateRepo: $('auto-create').checked,
+    createPrivateRepo: $('create-private').checked
+  };
   $('test-repo-btn').disabled = true;
   $('test-repo-btn').textContent = 'Testing...';
+  await sendMessage({ type: 'SAVE_SETTINGS', settings: currentRepoSettings });
   const res = await sendMessage({ type: 'TEST_REPO_ACCESS' });
   if (res.ok) {
     showToast(`Repo OK (${res.repo.private ? 'private' : 'public'}), branch "${res.branch}" ${res.branchExists ? 'exists' : 'not found'}`, 'success');
@@ -424,12 +431,17 @@ function validateRepoSettings() {
   const repo = $('repo-name').value.trim();
   const branch = $('branch').value.trim();
   const msgNode = $('repo-validation-msg');
-  const repoValid = /^[A-Za-z0-9._-]+$/.test(repo) && repo !== '.' && repo !== '..' && !repo.endsWith('.git');
+  const repoParts = repo.split('/').map(s => s.trim()).filter(Boolean);
+  const isValidSegment = (s) => /^[A-Za-z0-9._-]+$/.test(s) && s !== '.' && s !== '..';
+  const repoValid = (
+    (repoParts.length === 1 && isValidSegment(repoParts[0]) && !repoParts[0].endsWith('.git')) ||
+    (repoParts.length === 2 && isValidSegment(repoParts[0]) && isValidSegment(repoParts[1]) && !repoParts[1].endsWith('.git'))
+  );
   const branchValid = !!branch && !branch.includes('..') && !branch.includes('\\') && !branch.startsWith('/') && !branch.endsWith('/') && !/[\s~^:?*\[\]]/.test(branch) && !branch.endsWith('.lock');
 
   if (!repoValid) {
-    msgNode.textContent = 'Repository name is invalid.';
-    return 'Repository name is invalid.';
+    msgNode.textContent = 'Repository name is invalid. Use "repo" or "owner/repo".';
+    return 'Repository name is invalid. Use "repo" or "owner/repo".';
   }
   if (!branchValid) {
     msgNode.textContent = 'Branch name is invalid.';

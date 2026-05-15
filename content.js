@@ -155,7 +155,7 @@
     const slug = extractSlugFromURL();
     if (!slug || _syncedThisLoad.has(slug)) return;
 
-    await sleep(1200); // let Monaco fully initialize
+    await sleep(1200); // let editor initialize
 
     const problem = {
       id:          extractIdFromPage(),
@@ -166,6 +166,14 @@
       language:    extractLanguageFromPage(),
       code:        extractCodeFromEditor()
     };
+
+    if (!problem.code) {
+      // Some LeetCode pages mount editor late; retry a few times.
+      for (let i = 0; i < 4 && !problem.code; i++) {
+        await sleep(800);
+        problem.code = extractCodeFromEditor();
+      }
+    }
 
     if (!problem.id || !problem.code) {
       console.warn('[LeetSync] Extraction failed — id:', problem.id, 'code:', !!problem.code);
@@ -290,7 +298,49 @@ function extractCodeFromEditor() {
   const cm = document.querySelector('.CodeMirror');
   if (cm?.CodeMirror) return cm.CodeMirror.getValue();
 
+  // Method 5: Page-context Monaco bridge (works when isolated world can't read window.monaco)
+  const bridgedCode = getCodeViaPageContext();
+  if (bridgedCode) return bridgedCode;
+
   return null;
+}
+
+function getCodeViaPageContext() {
+  const key = `__leetsync_code_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  let captured = null;
+
+  function onCode(event) {
+    if (event?.detail?.key !== key) return;
+    captured = typeof event.detail.code === 'string' ? event.detail.code : null;
+  }
+
+  window.addEventListener('LEETSYNC_CODE_BRIDGE', onCode, { once: true });
+  const script = document.createElement('script');
+  script.textContent = `
+    (function() {
+      var key = ${JSON.stringify(key)};
+      var code = null;
+      try {
+        if (window.monaco && window.monaco.editor) {
+          var editors = window.monaco.editor.getEditors ? window.monaco.editor.getEditors() : [];
+          if (editors && editors.length > 0 && editors[0] && typeof editors[0].getValue === 'function') {
+            code = editors[0].getValue();
+          } else {
+            var models = window.monaco.editor.getModels ? window.monaco.editor.getModels() : [];
+            if (models && models.length > 0 && models[0] && typeof models[0].getValue === 'function') {
+              code = models[0].getValue();
+            }
+          }
+        }
+      } catch (e) {}
+      window.dispatchEvent(new CustomEvent('LEETSYNC_CODE_BRIDGE', { detail: { key: key, code: code } }));
+    })();
+  `;
+
+  (document.documentElement || document.head || document.body).appendChild(script);
+  script.remove();
+  window.removeEventListener('LEETSYNC_CODE_BRIDGE', onCode);
+  return captured;
 }
 
   // ─── Utilities ────────────────────────────────────────────────────────────

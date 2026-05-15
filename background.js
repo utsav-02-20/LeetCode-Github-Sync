@@ -7,6 +7,8 @@ import { getFilePath, formatCommitMessage, generateFileHeader, generateReadmeCon
 let syncQueue = [];
 let isSyncing = false;
 let cancelBackupFlag = false;
+let currentSyncProblem = null;
+let backupProgress = { running: false, current: 0, total: 0 };
 const MAX_CODE_LENGTH = 500_000;
 const MAX_QUEUE_LENGTH = 25;
 const EXTENSION_ORIGIN = `chrome-extension://${chrome.runtime.id}`;
@@ -88,10 +90,33 @@ function cleanEnum(value, allowed, fallback) {
 }
 
 function cleanRepoName(value) {
-  const repo = cleanText(value, 100);
-  if (!/^[A-Za-z0-9._-]+$/.test(repo)) return 'LeetCode-Solutions';
-  if (repo === '.' || repo === '..' || repo.endsWith('.git')) return 'LeetCode-Solutions';
-  return repo;
+  const raw = cleanText(value, 160);
+  if (!raw) return 'LeetCode-Solutions';
+
+  const parts = raw.split('/').map(s => s.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const repo = parts[0];
+    if (!/^[A-Za-z0-9._-]+$/.test(repo)) return 'LeetCode-Solutions';
+    if (repo === '.' || repo === '..' || repo.endsWith('.git')) return 'LeetCode-Solutions';
+    return repo;
+  }
+
+  if (parts.length === 2) {
+    const [owner, repo] = parts;
+    if (!/^[A-Za-z0-9._-]+$/.test(owner)) return 'LeetCode-Solutions';
+    if (!/^[A-Za-z0-9._-]+$/.test(repo)) return 'LeetCode-Solutions';
+    if (owner === '.' || owner === '..' || repo === '.' || repo === '..' || repo.endsWith('.git')) return 'LeetCode-Solutions';
+    return `${owner}/${repo}`;
+  }
+
+  return 'LeetCode-Solutions';
+}
+
+function parseRepoTarget(repoSetting, fallbackOwner) {
+  const normalized = cleanRepoName(repoSetting || 'LeetCode-Solutions');
+  const parts = normalized.split('/');
+  if (parts.length === 2) return { owner: parts[0], repo: parts[1], full: normalized };
+  return { owner: fallbackOwner, repo: normalized, full: `${fallbackOwner}/${normalized}` };
 }
 
 function cleanBranch(value) {
@@ -291,10 +316,13 @@ async function connectWithPat(rawToken) {
 async function processSyncQueue() {
   if (isSyncing || syncQueue.length === 0) return;
   isSyncing = true;
+  broadcastQueueUpdate();
 
   try {
     while (syncQueue.length > 0 && !cancelBackupFlag) {
       const { problem } = syncQueue.shift();
+      currentSyncProblem = summarizeProblem(problem);
+      broadcastQueueUpdate();
       try {
         const result = await syncToGitHub(problem);
         if (result) {
@@ -314,10 +342,14 @@ async function processSyncQueue() {
           error: err.message
         });
       }
+      currentSyncProblem = null;
+      broadcastQueueUpdate();
     }
   } finally {
     isSyncing = false;
     cancelBackupFlag = false;
+    currentSyncProblem = null;
+    broadcastQueueUpdate();
   }
 }
 
@@ -355,12 +387,13 @@ async function syncToGitHub(problem) {
   const api = new GitHubAPI(token);
 
   const user = await api.getUser();
-  const owner = user.login;
-  const repoName = settings.repoName || 'LeetCode-Solutions';
+  const repoTarget = parseRepoTarget(settings.repoName, user.login);
+  const owner = repoTarget.owner;
+  const repoName = repoTarget.repo;
   const branch = settings.branch || 'main';
 
   if (settings.autoCreateRepo) {
-    await api.ensureRepo(owner, repoName, settings.createPrivateRepo === true);
+    await api.ensureRepo(owner, repoName, settings.createPrivateRepo === true, user.login);
   } else {
     await api.getRepo(owner, repoName);
   }
@@ -446,6 +479,8 @@ async function handleFullBackup(sendResponse) {
   }
   isSyncing = true;
   cancelBackupFlag = false;
+  backupProgress = { running: true, current: 0, total: 0 };
+  broadcastQueueUpdate();
 
   try {
     const token = await getToken();
@@ -457,13 +492,14 @@ async function handleFullBackup(sendResponse) {
     const settings = sanitizeSettings(await getSettings());
     const api = new GitHubAPI(token);
     const user = await api.getUser();
+    const repoTarget = parseRepoTarget(settings.repoName, user.login);
     if (settings.autoCreateRepo) {
-      await api.ensureRepo(user.login, settings.repoName, settings.createPrivateRepo === true);
+      await api.ensureRepo(repoTarget.owner, repoTarget.repo, settings.createPrivateRepo === true, user.login);
     } else {
-      await api.getRepo(user.login, settings.repoName);
+      await api.getRepo(repoTarget.owner, repoTarget.repo);
     }
     
-    const remoteLog = await getRemoteLog(api, user.login, settings.repoName, settings.branch);
+    const remoteLog = await getRemoteLog(api, repoTarget.owner, repoTarget.repo, settings.branch);
     const metadataMap = await fetchProblemMetadata();
     
     let submissionsToSync = [];
@@ -501,6 +537,8 @@ async function handleFullBackup(sendResponse) {
 
     if (submissionsToSync.length === 0) {
       broadcastToPopup({ type: 'BACKUP_COMPLETE', total: 0 });
+      backupProgress = { running: false, current: 0, total: 0 };
+      broadcastQueueUpdate();
       return;
     }
 
@@ -518,6 +556,8 @@ async function handleFullBackup(sendResponse) {
     ).sort((a, b) => Number(a.sub.id) - Number(b.sub.id));
 
     broadcastToPopup({ type: 'BACKUP_STARTED', total: submissionsToSync.length });
+    backupProgress = { running: true, current: 0, total: submissionsToSync.length };
+    broadcastQueueUpdate();
 
     for (let i = 0; i < submissionsToSync.length; i++) {
       if (cancelBackupFlag) break;
@@ -535,6 +575,8 @@ async function handleFullBackup(sendResponse) {
       };
 
       await syncToGitHub(problemObj);
+      backupProgress.current = i + 1;
+      broadcastQueueUpdate();
       broadcastToPopup({
         type: 'BACKUP_PROGRESS',
         current: i + 1,
@@ -550,19 +592,27 @@ async function handleFullBackup(sendResponse) {
 
     if (cancelBackupFlag) {
       broadcastToPopup({ type: 'BACKUP_STOPPED' });
+      backupProgress = { running: false, current: backupProgress.current, total: backupProgress.total };
+      broadcastQueueUpdate();
       return;
     }
 
     remoteLog.last_sync = Date.now();
-    await api.createOrUpdateFile(user.login, settings.repoName, 'sync_log.json', JSON.stringify(remoteLog, null, 2), 'chore: update sync log', settings.branch);
+    await api.createOrUpdateFile(repoTarget.owner, repoTarget.repo, 'sync_log.json', JSON.stringify(remoteLog, null, 2), 'chore: update sync log', settings.branch);
     broadcastToPopup({ type: 'BACKUP_COMPLETE', total: submissionsToSync.length });
+    backupProgress = { running: false, current: submissionsToSync.length, total: submissionsToSync.length };
+    broadcastQueueUpdate();
 
   } catch (error) {
     console.error('[LeetSync BG] Backup failed:', error);
     broadcastToPopup({ type: 'BACKUP_FAILED', error: error.message });
+    backupProgress = { running: false, current: backupProgress.current, total: backupProgress.total };
+    broadcastQueueUpdate();
   } finally {
     isSyncing = false;
     cancelBackupFlag = false;
+    currentSyncProblem = null;
+    broadcastQueueUpdate();
     processSyncQueue();
   }
 }
@@ -649,8 +699,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const settings = sanitizeSettings(await getSettings());
       const api = new GitHubAPI(token);
       const user = await api.getUser();
-      const repo = await api.getRepo(user.login, settings.repoName);
-      const branches = await api.listBranches(user.login, settings.repoName);
+      const repoTarget = parseRepoTarget(settings.repoName, user.login);
+      const repo = await api.getRepo(repoTarget.owner, repoTarget.repo);
+      const branches = await api.listBranches(repoTarget.owner, repoTarget.repo);
       return sendResponse({
         ok: true,
         repo: { name: repo.name, private: !!repo.private },
@@ -674,6 +725,7 @@ async function handleSyncRequest(problem) {
   if (!safeProblem) return { queued: false, error: 'Invalid problem payload.' };
 
   syncQueue.push({ problem: safeProblem });
+  broadcastQueueUpdate();
   processSyncQueue();
   return { queued: true };
 }
@@ -693,7 +745,10 @@ async function getStatus() {
     user,
     settings: getPublicSettings(settings),
     queueSize: syncQueue.length,
-    syncing: isSyncing
+    syncing: isSyncing,
+    queuePreview: syncQueue.slice(0, 8).map(item => summarizeProblem(item.problem)),
+    currentProblem: currentSyncProblem,
+    backupProgress
   };
 }
 
@@ -729,6 +784,24 @@ function notifyError(problem, error) {
 
 function broadcastToPopup(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
+}
+
+async function broadcastQueueUpdate() {
+  const status = {
+    queueSize: syncQueue.length,
+    syncing: isSyncing,
+    queuePreview: syncQueue.slice(0, 8).map(item => summarizeProblem(item.problem)),
+    currentProblem: currentSyncProblem,
+    backupProgress
+  };
+  broadcastToPopup({
+    type: 'QUEUE_UPDATE',
+    queueSize: status.queueSize,
+    syncing: status.syncing,
+    queuePreview: status.queuePreview,
+    currentProblem: status.currentProblem,
+    backupProgress: status.backupProgress
+  });
 }
 
 console.log('[LeetSync BG] Service worker started.');

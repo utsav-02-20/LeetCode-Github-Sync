@@ -47,7 +47,7 @@ export class SyncManager {
     if (settings.autoCreateRepo === false) {
       await this.api.getRepo(this.owner, repoName);
     } else {
-      await this.api.ensureRepo(this.owner, repoName, settings.createPrivateRepo === true);
+      await this.api.ensureRepo(this.owner, repoName, settings.createPrivateRepo === true, this.owner);
     }
 
     // Build code with header
