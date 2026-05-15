@@ -225,6 +225,20 @@ function getProblemUpdateMarker(problem = {}) {
   return `code:${hashText(problem.code || '')}`;
 }
 
+function normalizeProblemKey(value) {
+  return cleanText(value || '', 200)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function getBackupProblemKey(sub, meta = {}) {
+  if (meta.id) return `id:${meta.id}`;
+  if (sub?.title_slug) return `slug:${normalizeProblemKey(sub.title_slug)}`;
+  return `title:${normalizeProblemKey(sub?.title || '')}`;
+}
+
 /**
  * Initiates the GitHub OAuth flow using chrome.identity.
  */
@@ -515,14 +529,13 @@ async function handleFullBackup(sendResponse) {
         if (sub.status_display !== 'Accepted') continue;
 
         const meta = metadataMap[sub.title] || {};
-        const probId = meta.id || '0000';
-        const logEntry = remoteLog.problems[probId];
+        const problemKey = getBackupProblemKey(sub, meta);
+        const logEntry = remoteLog.problems[problemKey];
+        const latestSubmissionId = Number(logEntry?.submission_id || 0);
+        const currentSubmissionId = Number(sub.id || 0);
 
-        if (!logEntry || sub.id > logEntry.submission_id) {
+        if (!logEntry || currentSubmissionId > latestSubmissionId) {
           submissionsToSync.push({ sub, meta });
-        } else {
-          hasNext = false; 
-          break;
         }
       }
       if (!data.has_next) hasNext = false;
@@ -545,7 +558,7 @@ async function handleFullBackup(sendResponse) {
     submissionsToSync = Array.from(
       submissionsToSync
         .reduce((latestByProblem, item) => {
-          const problemId = item.meta.id || item.sub.title;
+          const problemId = getBackupProblemKey(item.sub, item.meta);
           const current = latestByProblem.get(problemId);
           if (!current || Number(item.sub.id) > Number(current.sub.id)) {
             latestByProblem.set(problemId, item);
@@ -564,9 +577,9 @@ async function handleFullBackup(sendResponse) {
       const item = submissionsToSync[i];
       const { sub, meta } = item;
       const problemObj = {
-        id: meta.id || '0000',
+        id: meta.id || String(sub.frontend_question_id || sub.question_id || sub.id || '0000'),
         title: sub.title,
-        slug: meta.slug,
+        slug: meta.slug || sub.title_slug || normalizeProblemKey(sub.title) || 'unknown-problem',
         difficulty: meta.difficulty,
         language: sub.lang,
         code: sub.code,
@@ -584,7 +597,8 @@ async function handleFullBackup(sendResponse) {
         problem: summarizeProblem(problemObj)
       });
 
-      remoteLog.problems[problemObj.id] = {
+      const problemKey = getBackupProblemKey(sub, meta);
+      remoteLog.problems[problemKey] = {
         submission_id: sub.id,
         updated_at: new Date().toISOString()
       };
