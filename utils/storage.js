@@ -34,6 +34,10 @@ export const DEFAULT_SETTINGS = {
   branch: 'main',
   repoName: 'LeetCode-Solutions',
   autoCreateRepo: true,
+  createPrivateRepo: false,
+  updateReadme: true,
+  notifySuccess: true,
+  notifyError: true,
   githubClientId: '',
   githubTokenProxyUrl: ''
 };

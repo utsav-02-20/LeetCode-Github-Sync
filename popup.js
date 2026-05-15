@@ -189,6 +189,10 @@ $('open-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
+$('open-index').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
+});
+
 $('view-all-btn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });

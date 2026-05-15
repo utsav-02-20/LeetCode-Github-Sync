@@ -56,7 +56,9 @@ function validateTokenProxyUrl(value) {
 }
 
 function isExtensionPage(sender) {
-  return sender?.id === chrome.runtime.id && !sender.tab && (!sender.url || sender.url.startsWith(EXTENSION_ORIGIN));
+  if (sender?.id && sender.id !== chrome.runtime.id) return false;
+  const senderUrl = sender?.url || sender?.tab?.url || '';
+  return !senderUrl || senderUrl.startsWith(EXTENSION_ORIGIN);
 }
 
 function isTrustedLeetCodeSender(sender) {
@@ -110,6 +112,10 @@ function sanitizeSettings(settings = {}) {
     branch: cleanBranch(settings.branch || 'main'),
     repoName: cleanRepoName(settings.repoName || 'LeetCode-Solutions'),
     autoCreateRepo: settings.autoCreateRepo !== false,
+    createPrivateRepo: settings.createPrivateRepo === true,
+    updateReadme: settings.updateReadme !== false,
+    notifySuccess: settings.notifySuccess !== false,
+    notifyError: settings.notifyError !== false,
     githubClientId: cleanText(settings.githubClientId || '', 120).replace(/[^A-Za-z0-9_-]/g, ''),
     githubTokenProxyUrl: cleanText(settings.githubTokenProxyUrl || '', 500)
   };
@@ -353,7 +359,11 @@ async function syncToGitHub(problem) {
   const repoName = settings.repoName || 'LeetCode-Solutions';
   const branch = settings.branch || 'main';
 
-  await api.ensureRepo(owner, repoName, false);
+  if (settings.autoCreateRepo) {
+    await api.ensureRepo(owner, repoName, settings.createPrivateRepo === true);
+  } else {
+    await api.getRepo(owner, repoName);
+  }
 
   const header = generateFileHeader(problem);
   const filePath = getFilePath(problem, settings);
@@ -391,14 +401,16 @@ async function syncToGitHub(problem) {
     return { filePath, repoName, owner, skipped: true };
   }
 
-  const stats = await updateStats(problem.difficulty, problem.language);
-  const readmeContent = generateReadmeContent(stats, repoName);
   let readmeWarning = null;
-  try {
-    await api.createOrUpdateFile(owner, repoName, 'README.md', readmeContent, 'chore: update README', branch);
-  } catch (error) {
-    readmeWarning = error.message || 'README update failed';
-    console.warn('[LeetSync BG] README update skipped:', error);
+  const stats = await updateStats(problem.difficulty, problem.language);
+  if (settings.updateReadme !== false) {
+    const readmeContent = generateReadmeContent(stats, repoName);
+    try {
+      await api.createOrUpdateFile(owner, repoName, 'README.md', readmeContent, 'chore: update README', branch);
+    } catch (error) {
+      readmeWarning = error.message || 'README update failed';
+      console.warn('[LeetSync BG] README update skipped:', error);
+    }
   }
 
   await markProblemSynced(problem.id, {
@@ -445,6 +457,11 @@ async function handleFullBackup(sendResponse) {
     const settings = sanitizeSettings(await getSettings());
     const api = new GitHubAPI(token);
     const user = await api.getUser();
+    if (settings.autoCreateRepo) {
+      await api.ensureRepo(user.login, settings.repoName, settings.createPrivateRepo === true);
+    } else {
+      await api.getRepo(user.login, settings.repoName);
+    }
     
     const remoteLog = await getRemoteLog(api, user.login, settings.repoName, settings.branch);
     const metadataMap = await fetchProblemMetadata();
@@ -625,6 +642,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     saveSettings(settings).then(() => sendResponse({ ok: true })).catch(e => sendResponse({ ok: false, error: e.message }));
     return true;
   }
+  if (message.type === 'TEST_REPO_ACCESS') {
+    (async () => {
+      const token = await getToken();
+      if (!token) return sendResponse({ ok: false, error: 'Not connected to GitHub.' });
+      const settings = sanitizeSettings(await getSettings());
+      const api = new GitHubAPI(token);
+      const user = await api.getUser();
+      const repo = await api.getRepo(user.login, settings.repoName);
+      const branches = await api.listBranches(user.login, settings.repoName);
+      return sendResponse({
+        ok: true,
+        repo: { name: repo.name, private: !!repo.private },
+        branchExists: Array.isArray(branches) && branches.some(b => b.name === settings.branch),
+        branch: settings.branch
+      });
+    })().catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
 
   sendResponse({ ok: false, error: 'Unknown message type.' });
   return false;
@@ -665,23 +700,31 @@ async function getStatus() {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function notifySuccess(problem, result) {
-  chrome.notifications.create(`sync_${problem.id}_${Date.now()}`, {
-    type: 'basic',
-    iconUrl: 'icons/icon48.png',
-    title: result?.skipped ? 'LeetCode Already Synced' : '✅ LeetCode Synced!',
-    message: `${cleanText(problem.id, 40)}. ${cleanText(problem.title, 120)}\n→ ${cleanText(result.repoName, 100)}/${cleanText(result.filePath, 180)}`
-  });
+  getSettings().then(raw => {
+    const settings = sanitizeSettings(raw);
+    if (settings.notifySuccess === false) return;
+    chrome.notifications.create(`sync_${problem.id}_${Date.now()}`, {
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: result?.skipped ? 'LeetCode Already Synced' : '✅ LeetCode Synced!',
+      message: `${cleanText(problem.id, 40)}. ${cleanText(problem.title, 120)}\n→ ${cleanText(result.repoName, 100)}/${cleanText(result.filePath, 180)}`
+    });
+  }).catch(() => {});
 }
 
 function notifyError(problem, error) {
-  let msg = cleanText(error.message, 180);
-  if (isUnauthorized(error)) msg = 'GitHub token expired.';
-  chrome.notifications.create(`err_${Date.now()}`, {
-    type: 'basic',
-    iconUrl: 'icons/icon48.png',
-    title: '❌ Sync Failed',
-    message: `${cleanText(problem?.title || 'Problem', 120)}: ${msg}`
-  });
+  getSettings().then(raw => {
+    const settings = sanitizeSettings(raw);
+    if (settings.notifyError === false) return;
+    let msg = cleanText(error.message, 180);
+    if (isUnauthorized(error)) msg = 'GitHub token expired.';
+    chrome.notifications.create(`err_${Date.now()}`, {
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: '❌ Sync Failed',
+      message: `${cleanText(problem?.title || 'Problem', 120)}: ${msg}`
+    });
+  }).catch(() => {});
 }
 
 function broadcastToPopup(message) {

@@ -15,15 +15,21 @@ async function init() {
   $('repo-name').value = settings.repoName || 'LeetCode-Solutions';
   $('branch').value = settings.branch || 'main';
   $('auto-create').checked = settings.autoCreateRepo !== false;
+  $('create-private').checked = settings.createPrivateRepo === true;
   $('s-auto-sync').checked = settings.autoSync !== false;
   $('s-accepted-only').checked = settings.syncOnlyAccepted !== false;
   $('s-folder-org').value = settings.folderOrganization || 'topic';
   $('s-naming').value = settings.namingStyle || 'padded';
-  $('s-include-diff').checked = settings.includeDifficulty || false;
+  $('s-include-diff').checked = settings.includeDifficulty !== false;
   $('s-commit-tmpl').value = settings.commitTemplate || 'Solved: {id}. {title} [{language}]';
+  $('s-update-readme').checked = settings.updateReadme !== false;
+  $('s-notify-success').checked = settings.notifySuccess !== false;
+  $('s-notify-error').checked = settings.notifyError !== false;
   $('github-client-id').value = settings.githubClientId || '';
   $('github-token-proxy-url').value = settings.githubTokenProxyUrl || '';
   $('oauth-callback-url').value = getOAuthRedirectUrl();
+  refreshCommitPreview();
+  validateRepoSettings();
 
   // Auth state: render immediately from the cached user, then verify in the background.
   if (data.githubUser) {
@@ -124,6 +130,21 @@ $('disconnect-btn').addEventListener('click', async () => {
   showToast('Disconnected');
 });
 
+$('backup-now-btn').addEventListener('click', async () => {
+  const btn = $('backup-now-btn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = 'Starting...';
+  const res = await sendMessage({ type: 'START_BACKUP' });
+  if (res.ok) {
+    showToast('Backup started', 'success');
+  } else {
+    showToast('Backup failed to start: ' + (res.error || 'Unknown error'), 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = oldText;
+});
+
 $('save-oauth-btn').addEventListener('click', async () => {
   try {
     await saveOAuthSettings();
@@ -144,6 +165,10 @@ $('copy-callback-btn').addEventListener('click', async () => {
   }
 });
 
+$('open-index-btn').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
+});
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -159,16 +184,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ─── Save Settings ────────────────────────────────────────────────────────────
 
 $('save-settings-btn').addEventListener('click', async () => {
+  const validationError = validateRepoSettings();
+  if (validationError) {
+    showToast(validationError, 'error');
+    return;
+  }
+
   const settings = {
     repoName: $('repo-name').value.trim() || 'LeetCode-Solutions',
     branch: $('branch').value.trim() || 'main',
     autoCreateRepo: $('auto-create').checked,
+    createPrivateRepo: $('create-private').checked,
     autoSync: $('s-auto-sync').checked,
     syncOnlyAccepted: $('s-accepted-only').checked,
     folderOrganization: $('s-folder-org').value,
     namingStyle: $('s-naming').value,
     includeDifficulty: $('s-include-diff').checked,
     commitTemplate: $('s-commit-tmpl').value.trim(),
+    updateReadme: $('s-update-readme').checked,
+    notifySuccess: $('s-notify-success').checked,
+    notifyError: $('s-notify-error').checked,
     githubClientId: $('github-client-id').value.trim(),
     githubTokenProxyUrl: $('github-token-proxy-url').value.trim()
   };
@@ -201,6 +236,64 @@ function markUnsaved() {
     $('unsaved-badge').style.display = 'inline';
   }
 }
+
+$('repo-name').addEventListener('input', validateRepoSettings);
+$('branch').addEventListener('input', validateRepoSettings);
+$('s-commit-tmpl').addEventListener('input', refreshCommitPreview);
+
+$('test-repo-btn').addEventListener('click', async () => {
+  const validationError = validateRepoSettings();
+  if (validationError) {
+    showToast(validationError, 'error');
+    return;
+  }
+  $('test-repo-btn').disabled = true;
+  $('test-repo-btn').textContent = 'Testing...';
+  const res = await sendMessage({ type: 'TEST_REPO_ACCESS' });
+  if (res.ok) {
+    showToast(`Repo OK (${res.repo.private ? 'private' : 'public'}), branch "${res.branch}" ${res.branchExists ? 'exists' : 'not found'}`, 'success');
+  } else {
+    showToast(`Test failed: ${res.error || 'Unknown error'}`, 'error');
+  }
+  $('test-repo-btn').disabled = false;
+  $('test-repo-btn').textContent = 'Test Repository Access';
+});
+
+$('export-settings-btn').addEventListener('click', async () => {
+  const data = await getStorage(['settings']);
+  const payload = JSON.stringify({ settings: data.settings || {}, exportedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'leetsync-settings.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Settings exported', 'success');
+});
+
+$('import-settings-btn').addEventListener('click', () => {
+  $('import-settings-file').click();
+});
+
+$('import-settings-file').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const imported = parsed?.settings;
+    if (!imported || typeof imported !== 'object') throw new Error('Invalid settings file');
+    const res = await sendMessage({ type: 'SAVE_SETTINGS', settings: imported });
+    if (!res.ok) throw new Error(res.error || 'Import failed');
+    showToast('Settings imported', 'success');
+    setTimeout(() => window.location.reload(), 300);
+  } catch (e) {
+    showToast(e.message || 'Import failed', 'error');
+  } finally {
+    event.target.value = '';
+  }
+});
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
@@ -325,6 +418,37 @@ function safeImageUrl(value) {
     }
   } catch (e) {}
   return '';
+}
+
+function validateRepoSettings() {
+  const repo = $('repo-name').value.trim();
+  const branch = $('branch').value.trim();
+  const msgNode = $('repo-validation-msg');
+  const repoValid = /^[A-Za-z0-9._-]+$/.test(repo) && repo !== '.' && repo !== '..' && !repo.endsWith('.git');
+  const branchValid = !!branch && !branch.includes('..') && !branch.includes('\\') && !branch.startsWith('/') && !branch.endsWith('/') && !/[\s~^:?*\[\]]/.test(branch) && !branch.endsWith('.lock');
+
+  if (!repoValid) {
+    msgNode.textContent = 'Repository name is invalid.';
+    return 'Repository name is invalid.';
+  }
+  if (!branchValid) {
+    msgNode.textContent = 'Branch name is invalid.';
+    return 'Branch name is invalid.';
+  }
+  msgNode.textContent = '';
+  return '';
+}
+
+function refreshCommitPreview() {
+  const template = $('s-commit-tmpl').value || 'Solved: {id}. {title} [{language}]';
+  const sample = template
+    .replace('{id}', '0121')
+    .replace('{title}', 'Best Time to Buy and Sell Stock')
+    .replace('{language}', 'cpp')
+    .replace('{difficulty}', 'Easy')
+    .replace('{runtime}', '52 ms')
+    .replace('{memory}', '18.7 MB');
+  $('commit-preview').textContent = sample;
 }
 
 function showToast(msg, type = '') {

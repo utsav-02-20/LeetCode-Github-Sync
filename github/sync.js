@@ -43,8 +43,12 @@ export class SyncManager {
     const repoName = settings.repoName || 'LeetCode-Solutions';
     const branch = settings.branch || 'main';
 
-    // Ensure repo exists
-    await this.api.ensureRepo(this.owner, repoName, false);
+    // Ensure repo exists (or require it if auto-create is disabled)
+    if (settings.autoCreateRepo === false) {
+      await this.api.getRepo(this.owner, repoName);
+    } else {
+      await this.api.ensureRepo(this.owner, repoName, settings.createPrivateRepo === true);
+    }
 
     // Build code with header
     const header = generateFileHeader(problem);
@@ -98,20 +102,22 @@ export class SyncManager {
 
     // Update README
     const stats = await updateStats(problem.difficulty, problem.language);
-    const readmeContent = generateReadmeContent(stats, repoName);
     let readmeWarning = null;
-    try {
-      await this.api.createOrUpdateFile(
-        this.owner,
-        repoName,
-        'README.md',
-        readmeContent,
-        `chore: update README stats`,
-        branch
-      );
-    } catch (error) {
-      readmeWarning = error.message || 'README update failed';
-      console.warn('[LeetSync] README update skipped:', error);
+    if (settings.updateReadme !== false) {
+      const readmeContent = generateReadmeContent(stats, repoName);
+      try {
+        await this.api.createOrUpdateFile(
+          this.owner,
+          repoName,
+          'README.md',
+          readmeContent,
+          `chore: update README stats`,
+          branch
+        );
+      } catch (error) {
+        readmeWarning = error.message || 'README update failed';
+        console.warn('[LeetSync] README update skipped:', error);
+      }
     }
 
     // Record sync

@@ -18,6 +18,7 @@
       --accent2: #58a6ff;
       --success: #3fb950;
       --danger: #f85149;
+      --warn: #d29922;
       --easy: #3fb950;
       --medium: #f0883e;
       --hard: #f85149;
@@ -153,6 +154,12 @@
       font-size: 11px;
       color: var(--muted);
       margin-top: 4px;
+    }
+    .field-error {
+      font-size: 11px;
+      color: var(--danger);
+      margin-top: 4px;
+      min-height: 14px;
     }
 
     .input {
@@ -482,6 +489,7 @@
     <div>
       <div class="page-title">Leet<span>Sync</span> Settings</div>
     </div>
+    <button class="btn btn-secondary" id="open-index-btn" style="margin-left:auto">Workflow Page</button>
   </div>
 
   <div class="tabs">
@@ -559,7 +567,10 @@
               <div style="font-size:11px;color:var(--success)">● Connected</div>
             </div>
           </div>
-          <button class="btn btn-danger" id="disconnect-btn">Disconnect GitHub</button>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="backup-now-btn">Backup Now</button>
+            <button class="btn btn-danger" id="disconnect-btn">Disconnect GitHub</button>
+          </div>
         </div>
         <div id="gh-disconnected">
           <div class="auth-options">
@@ -629,6 +640,17 @@
           </div>
           <label class="toggle"><input type="checkbox" id="auto-create" checked><div class="toggle-slider"></div></label>
         </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Create as private repository</div>
+            <div style="font-size:11px;color:var(--muted)">Used only when auto-create is enabled</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="create-private"><div class="toggle-slider"></div></label>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="test-repo-btn">Test Repository Access</button>
+        </div>
+        <div class="field-error" id="repo-validation-msg"></div>
       </div>
     </div>
 
@@ -694,12 +716,43 @@
         <div class="field-group">
           <input type="text" class="input input-mono" id="s-commit-tmpl" value="Solved: {id}. {title} [{language}]" />
           <div class="field-desc">Variables: <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px">{id} {title} {language} {difficulty} {runtime} {memory}</code></div>
+          <div class="field-desc">Preview: <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px" id="commit-preview"></code></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="ui-icon" aria-hidden="true">+</span><div class="card-title">Advanced Sync</div></div>
+      <div class="card-body">
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Update README stats</div>
+            <div style="font-size:11px;color:var(--muted)">Refresh README after each successful sync</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-update-readme" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Success notifications</div>
+            <div style="font-size:11px;color:var(--muted)">Show desktop notifications on successful syncs</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-notify-success" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div style="font-weight:500">Error notifications</div>
+            <div style="font-size:11px;color:var(--muted)">Show desktop notifications when sync fails</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-notify-error" checked><div class="toggle-slider"></div></label>
         </div>
       </div>
     </div>
 
     <div class="save-bar">
       <button class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+      <button class="btn btn-secondary" id="export-settings-btn">Export</button>
+      <button class="btn btn-secondary" id="import-settings-btn">Import</button>
+      <input type="file" id="import-settings-file" accept="application/json" style="display:none" />
       <span class="unsaved-badge" id="unsaved-badge">● Unsaved changes</span>
     </div>
 
