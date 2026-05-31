@@ -178,7 +178,7 @@ export function generateReadmeContent(stats, repo) {
 
   return `# 🧩 LeetCode Solutions
 
-> Auto-synced via [LeetCode → GitHub Sync](https://github.com) Chrome Extension
+> Auto-synced via [LeetCode → GitHub Sync](https://github.com/utsav-02-20/LeetCode-Github-Sync) Chrome Extension
 
 ## 📊 Progress
 
