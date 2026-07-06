@@ -1,4 +1,4 @@
-# 🚀 LeetSync  
+# LeetSync  
 ### *Turn Your LeetCode Journey into a Professional GitHub Portfolio*
 
 <p align="center">
