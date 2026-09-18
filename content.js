@@ -187,22 +187,39 @@
   // ─── DOM Extraction Helpers ───────────────────────────────────────────────
 
   function extractIdFromPage() {
-  // Method 1: from page URL + document title
-  const titleTag = document.title; // "1. Two Sum - LeetCode"
-  const titleMatch = titleTag.match(/^(\d+)\./);
-  if (titleMatch) return titleMatch[1];
+    // Method 1: from document.title ("1. Two Sum - LeetCode")
+    const titleTag = document.title;
+    const titleMatch = titleTag.match(/^(\d+)\./);
+    if (titleMatch) return titleMatch[1];
 
-  // Method 2: from breadcrumb / heading
-  const allText = document.querySelectorAll('a, span, div, h4');
-  for (const el of allText) {
-    if (el.children.length === 0) {
-      const m = el.textContent.trim().match(/^(\d+)\.\s+\w/);
-      if (m) return m[1];
+    // Method 2: from problem link / title heading elements
+    const selectors = [
+      'a[href*="/problems/"]',
+      'div[class*="title"]',
+      'span[class*="title"]',
+      'h4',
+      'div.text-title-large'
+    ];
+    for (const s of selectors) {
+      const els = document.querySelectorAll(s);
+      for (const el of els) {
+        const text = el.textContent.trim();
+        const m = text.match(/^(\d+)\.\s+/);
+        if (m) return m[1];
+      }
     }
-  }
 
-  // Method 3: from URL path (for /problems/two-sum/ style - no ID, skip)
-  return null;
+    // Method 3: brute force scan for pattern "X. Title"
+    const allText = document.querySelectorAll('a, span, div, h4');
+    for (const el of allText) {
+      if (el.children.length === 0) {
+        const m = el.textContent.trim().match(/^(\d+)\.\s+[A-Za-z]/);
+        if (m) return m[1];
+      }
+    }
+
+    const slug = extractSlugFromURL();
+    return slug || null;
   }
 
   function extractTitleFromPage() {
@@ -210,14 +227,21 @@
       '[data-cy="question-title"]',
       'a[href*="/problems/"] span',
       'h4',
-      '.mr-2.text-lg.font-medium'
+      '.mr-2.text-lg.font-medium',
+      'div.text-title-large',
+      'span[class*="title"]'
     ];
     for (const s of sel) {
       const el = document.querySelector(s);
       if (el) {
         const text = el.textContent.trim();
-        return text.replace(/^\d+\.\s*/, '');
+        if (text) return text.replace(/^\d+\.\s*/, '');
       }
+    }
+
+    const slug = extractSlugFromURL();
+    if (slug) {
+      return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
     return 'Unknown Problem';
   }

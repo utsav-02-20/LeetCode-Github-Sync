@@ -62,28 +62,37 @@ export async function saveSettings(settings) {
  */
 export async function getToken() {
   return new Promise((resolve) => {
-    // Check session storage for the token
-    chrome.storage.session.get(['githubToken'], (result) => {
-      resolve(result.githubToken || null);
+    const storageArea = chrome.storage?.session || chrome.storage?.local;
+    if (!storageArea) return resolve(null);
+    storageArea.get(['githubToken'], (result) => {
+      resolve(result?.githubToken || null);
     });
   });
 }
 
 /**
- * Saves the GitHub token to session storage.
+ * Saves the GitHub token to session storage (or local storage fallback).
  */
 export async function saveToken(token) {
   return new Promise((resolve) => {
-    chrome.storage.session.set({ githubToken: token }, resolve);
+    const storageArea = chrome.storage?.session || chrome.storage?.local;
+    if (!storageArea) return resolve();
+    storageArea.set({ githubToken: token }, resolve);
   });
 }
 
 /**
- * Clears the GitHub token from session storage.
+ * Clears the GitHub token from session storage (or local storage fallback).
  */
 export async function clearToken() {
   return new Promise((resolve) => {
-    chrome.storage.session.remove(['githubToken'], resolve);
+    if (chrome.storage?.session) {
+      chrome.storage.session.remove(['githubToken']);
+    }
+    if (chrome.storage?.local) {
+      chrome.storage.local.remove(['githubToken']);
+    }
+    resolve();
   });
 }
 

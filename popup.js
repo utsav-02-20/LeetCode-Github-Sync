@@ -59,7 +59,13 @@ function showDashboard() {
   $('main-section').style.display = 'block';
 
   if (state.user) {
-    $('user-avatar').src = safeImageUrl(state.user.avatar_url);
+    const avatarUrl = safeImageUrl(state.user.avatar_url);
+    if (avatarUrl) {
+      $('user-avatar').src = avatarUrl;
+      $('user-avatar').style.display = 'inline-block';
+    } else {
+      $('user-avatar').style.display = 'none';
+    }
     $('user-name').textContent = state.user.login;
   }
 

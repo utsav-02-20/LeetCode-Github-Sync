@@ -70,8 +70,14 @@ async function refreshAuthStatus() {
 function showConnected(user) {
   $('gh-connected').style.display = 'block';
   $('gh-disconnected').style.display = 'none';
-  $('gh-avatar').src = safeImageUrl(user.avatar_url);
-  $('gh-login').textContent = user.login;
+  const avatarUrl = safeImageUrl(user?.avatar_url);
+  if (avatarUrl) {
+    $('gh-avatar').src = avatarUrl;
+    $('gh-avatar').style.display = 'inline-block';
+  } else {
+    $('gh-avatar').style.display = 'none';
+  }
+  $('gh-login').textContent = user?.login || 'Connected';
 }
 
 function showDisconnected() {

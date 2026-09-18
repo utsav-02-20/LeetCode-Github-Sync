@@ -385,7 +385,11 @@ async function getRemoteLog(api, owner, repo, branch) {
     const decoded = decodeURIComponent(
       atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
     );
-    return JSON.parse(decoded);
+    const parsed = JSON.parse(decoded);
+    return {
+      last_sync: parsed?.last_sync || 0,
+      problems: parsed?.problems && typeof parsed.problems === 'object' ? parsed.problems : {}
+    };
   } catch (e) {
     return { last_sync: 0, problems: {} };
   }
