@@ -3,35 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LeetSync</title>
+  <title>LeetSync Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface2: #21262d;
+      --bg: #0b0e14;
+      --surface: #151b23;
+      --surface2: #212830;
+      --surface-hover: #262c36;
       --border: #30363d;
-      --text: #e6edf3;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --text: #f0f6fc;
       --muted: #8b949e;
-      --accent: #f0883e;
+      --accent: #ffa116;
+      --accent-glow: rgba(255, 161, 22, 0.15);
       --accent2: #58a6ff;
-      --success: #3fb950;
+      --success: #2da44e;
       --danger: #f85149;
-      --warn: #d29922;
-      --easy: #3fb950;
-      --medium: #f0883e;
-      --hard: #f85149;
-      --radius: 8px;
+      --easy: #00b8a3;
+      --medium: #ffc01e;
+      --hard: #ff375f;
+      --radius: 10px;
     }
 
     body {
       width: 380px;
-      min-height: 480px;
+      min-height: 490px;
       background: var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 13px;
+      overflow-x: hidden;
     }
 
     /* ── Header ── */
@@ -39,7 +42,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px;
+      padding: 12px 16px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
     }
@@ -47,54 +50,65 @@
     .logo {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .logo-icon {
-      width: 28px;
-      height: 28px;
-      background: linear-gradient(135deg, var(--accent), #f8c471);
-      border-radius: 6px;
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #ffa116, #f8c471);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 0 12px var(--accent-glow);
     }
 
     .logo-text {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 15px;
       letter-spacing: -0.5px;
     }
 
     .logo-text span { color: var(--accent); }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .settings-btn {
-      background: none;
-      border: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
       cursor: pointer;
       color: var(--muted);
-      padding: 4px;
-      border-radius: 4px;
-      transition: color 0.2s;
-      font-size: 16px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      font-size: 14px;
     }
-    .settings-btn:hover { color: var(--text); }
+    .settings-btn:hover {
+      color: var(--text);
+      border-color: var(--accent2);
+    }
 
     /* ── Auth Section ── */
     #auth-section {
-      padding: 24px 16px;
+      padding: 32px 20px;
       text-align: center;
     }
 
     .auth-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
+      font-size: 42px;
+      margin-bottom: 14px;
+      filter: drop-shadow(0 4px 12px rgba(255, 161, 22, 0.2));
     }
 
     .auth-title {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 17px;
+      font-weight: 700;
       margin-bottom: 8px;
     }
 
@@ -102,7 +116,7 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.6;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
 
     .auth-divider {
@@ -111,7 +125,7 @@
       gap: 10px;
       color: var(--muted);
       font-size: 11px;
-      margin: 14px 0;
+      margin: 16px 0;
     }
 
     .auth-divider::before,
@@ -127,12 +141,13 @@
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 10px 12px;
+      padding: 10px 14px;
       color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       outline: none;
       margin-bottom: 10px;
+      transition: border-color 0.2s;
     }
 
     .input:focus { border-color: var(--accent2); }
@@ -146,43 +161,42 @@
       font-weight: 600;
       font-size: 13px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .btn-primary {
-      background: var(--accent);
+      background: linear-gradient(135deg, #ffa116, #f39c12);
       color: #0d1117;
+      box-shadow: 0 2px 8px rgba(255, 161, 22, 0.2);
     }
-    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
     .btn-secondary {
       background: var(--surface2);
       color: var(--text);
       border: 1px solid var(--border);
     }
-    .btn-secondary:hover { border-color: var(--accent2); }
+    .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
 
     .btn-danger {
       background: transparent;
       color: var(--danger);
       border: 1px solid var(--danger);
     }
-    .btn-danger:hover { background: rgba(248, 81, 73, 0.1); }
+    .btn-danger:hover { background: rgba(248, 81, 73, 0.12); }
 
     .btn-sm {
       width: auto;
       padding: 5px 10px;
       font-size: 11px;
+      border-radius: 6px;
     }
-
-    .link {
-      color: var(--accent2);
-      text-decoration: none;
-      font-size: 11px;
-    }
-    .link:hover { text-decoration: underline; }
 
     /* ── Main Dashboard ── */
     #main-section { display: none; }
@@ -190,18 +204,19 @@
     .user-card {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       padding: 12px 16px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
     }
 
     .avatar {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       border: 2px solid var(--success);
       object-fit: cover;
+      box-shadow: 0 0 8px rgba(45, 164, 78, 0.3);
     }
 
     .user-info { flex: 1; }
@@ -215,16 +230,18 @@
     .user-status {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       font-size: 11px;
       color: var(--success);
+      margin-top: 1px;
     }
 
     .dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--success);
+      box-shadow: 0 0 6px var(--success);
       animation: pulse 2s infinite;
     }
 
@@ -236,8 +253,8 @@
     .repo-badge {
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 3px 8px;
+      border-radius: 6px;
+      padding: 4px 8px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 10px;
       color: var(--accent2);
@@ -249,14 +266,12 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 1px;
       background: var(--border);
-      border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
-      margin: 0;
     }
 
     .stat-cell {
       background: var(--surface);
-      padding: 12px;
+      padding: 12px 8px;
       text-align: center;
     }
 
@@ -272,7 +287,7 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-top: 3px;
+      margin-top: 4px;
     }
 
     .val-easy { color: var(--easy); }
@@ -282,86 +297,56 @@
 
     /* ── Difficulty Bar ── */
     .diff-bar-container {
-      padding: 10px 16px 6px;
+      padding: 12px 16px 8px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
     }
 
     .diff-bar-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     .diff-bar-label {
       font-size: 10px;
       color: var(--muted);
-      width: 44px;
+      width: 48px;
       text-transform: uppercase;
+      font-weight: 600;
     }
 
     .diff-bar-track {
       flex: 1;
-      height: 4px;
+      height: 6px;
       background: var(--surface2);
-      border-radius: 2px;
+      border-radius: 3px;
       overflow: hidden;
     }
 
     .diff-bar-fill {
       height: 100%;
-      border-radius: 2px;
-      transition: width 0.6s ease;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .diff-bar-count {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 10px;
+      font-size: 11px;
       color: var(--muted);
-      width: 24px;
+      width: 28px;
       text-align: right;
     }
 
-    /* ── Toggle ── */
+    /* ── Settings Row ── */
     .setting-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 10px 16px;
       border-bottom: 1px solid var(--border);
-    }
-    .queue-box {
-      margin: 10px 16px 0;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 8px;
       background: var(--surface);
-    }
-    .queue-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .queue-current {
-      font-size: 11px;
-      color: var(--accent2);
-      margin-bottom: 6px;
-    }
-    .queue-list {
-      max-height: 92px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    .queue-item {
-      font-size: 11px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 7px;
-      background: var(--surface2);
     }
 
     .setting-info { flex: 1; }
@@ -417,6 +402,46 @@
       background: #0d1117;
     }
 
+    /* ── Queue Box ── */
+    .queue-box {
+      margin: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      background: var(--surface);
+    }
+    .queue-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .queue-current {
+      font-size: 11px;
+      color: var(--accent2);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .queue-list {
+      max-height: 90px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .queue-item {
+      font-size: 11px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: var(--surface2);
+    }
+
     /* ── Recent Syncs ── */
     .section-header {
       display: flex;
@@ -434,11 +459,11 @@
     }
 
     .sync-list {
-      max-height: 160px;
+      max-height: 155px;
       overflow-y: auto;
     }
 
-    .sync-list::-webkit-scrollbar { width: 3px; }
+    .sync-list::-webkit-scrollbar { width: 4px; }
     .sync-list::-webkit-scrollbar-track { background: transparent; }
     .sync-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
@@ -446,15 +471,11 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 16px;
+      padding: 9px 16px;
       border-bottom: 1px solid var(--border);
-      animation: slideIn 0.3s ease;
+      transition: background 0.15s;
     }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-8px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
+    .sync-item:hover { background: var(--surface); }
 
     .sync-status {
       font-size: 14px;
@@ -475,7 +496,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     .lang-badge {
@@ -483,27 +504,28 @@
       font-size: 9px;
       background: var(--surface2);
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 1px 5px;
+      border-radius: 4px;
+      padding: 1px 6px;
       color: var(--accent2);
     }
 
     .diff-badge {
       font-size: 9px;
-      border-radius: 3px;
-      padding: 1px 5px;
+      border-radius: 4px;
+      padding: 1px 6px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
-    .diff-easy { color: var(--easy); background: rgba(63, 185, 80, 0.1); }
-    .diff-medium { color: var(--medium); background: rgba(240, 136, 62, 0.1); }
-    .diff-hard { color: var(--hard); background: rgba(248, 81, 73, 0.1); }
+    .diff-easy { color: var(--easy); background: rgba(0, 184, 163, 0.12); }
+    .diff-medium { color: var(--medium); background: rgba(255, 192, 30, 0.12); }
+    .diff-hard { color: var(--hard); background: rgba(255, 55, 95, 0.12); }
 
     .sync-time {
       font-size: 10px;
       color: var(--muted);
+      margin-left: auto;
     }
 
     /* ── Empty State ── */
@@ -523,6 +545,7 @@
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid var(--border);
+      background: var(--surface);
     }
 
     .syncing-indicator {
@@ -544,12 +567,11 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Loading ── */
     #loading {
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 200px;
+      height: 220px;
       gap: 8px;
       color: var(--muted);
       font-size: 12px;
@@ -568,12 +590,13 @@
       font-size: 12px;
       transform: translateY(60px);
       opacity: 0;
-      transition: all 0.3s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 100;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
     #toast.show { transform: translateY(0); opacity: 1; }
-    #toast.success { border-color: var(--success); }
-    #toast.error { border-color: var(--danger); }
+    #toast.success { border-color: var(--success); color: var(--text); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
   </style>
 </head>
 <body>
@@ -581,30 +604,30 @@
   <div class="header">
     <div class="logo">
       <div class="logo-icon">
-        <span aria-hidden="true" style="color: rgb(240, 160, 77); font-size: 22px; line-height: 1;">⚡</span>
+        <span aria-hidden="true" style="color:#0d1117; font-size: 18px; font-weight: bold;">⚡</span>
       </div>
       <div class="logo-text">Leet<span>Sync</span></div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn btn-secondary btn-sm" id="open-index" title="Workflow">Workflow</button>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" id="open-index" title="Workflow Guide">Workflow</button>
       <button class="settings-btn" id="open-settings" title="Settings">⚙</button>
     </div>
   </div>
 
   <div id="loading">
     <div class="spinner"></div>
-    Loading…
+    Loading LeetSync…
   </div>
 
   <div id="auth-section" style="display:none">
-    <div class="auth-icon">🔗</div>
+    <div class="auth-icon">⚡</div>
     <div class="auth-title">Connect GitHub</div>
     <div class="auth-desc">
-      Sign in with GitHub to let LeetSync create and update your solutions repository automatically.
+      Sign in with GitHub to automatically sync your accepted LeetCode solutions to your GitHub repository.
     </div>
     <button class="btn btn-primary" id="connect-btn">Continue with GitHub</button>
     <div class="auth-divider">or</div>
-    <input type="password" class="input" id="github-pat" placeholder="GitHub PAT" autocomplete="off" spellcheck="false" />
+    <input type="password" class="input" id="github-pat" placeholder="Personal Access Token (PAT)" autocomplete="off" spellcheck="false" />
     <button class="btn btn-secondary" id="connect-pat-btn">Connect with PAT</button>
   </div>
 
@@ -665,9 +688,10 @@
         <div class="toggle-slider"></div>
       </label>
     </div>
+
     <div class="queue-box">
       <div class="queue-head">
-        <div>Backup Queue</div>
+        <div>Sync Queue</div>
         <div id="queue-count">0 pending</div>
       </div>
       <div class="queue-current" id="queue-current" style="display:none"></div>

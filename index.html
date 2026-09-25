@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LeetSync Workflow</title>
+  <title>LeetSync Workflow Guide</title>
   <style>
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface2: #21262d;
+      --bg: #0b0e14;
+      --surface: #151b23;
+      --surface2: #212830;
       --border: #30363d;
-      --text: #e6edf3;
+      --text: #f0f6fc;
       --muted: #8b949e;
-      --accent: #f0883e;
+      --accent: #ffa116;
       --accent2: #58a6ff;
+      --success: #2da44e;
       --radius: 10px;
     }
 
@@ -22,79 +23,112 @@
       margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       line-height: 1.6;
     }
 
     .wrap {
       max-width: 860px;
       margin: 0 auto;
-      padding: 28px 20px 40px;
+      padding: 36px 20px 48px;
     }
 
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #ffa116, #f8c471);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #0d1117;
+      font-weight: bold;
     }
 
     h1, h2, p { margin: 0 0 10px; }
-    h1 { font-size: 28px; }
-    h2 { font-size: 18px; }
-    p { color: var(--muted); }
+    h1 { font-size: 26px; font-weight: 700; }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 14px; }
+    p { color: var(--muted); font-size: 14px; }
 
     .step {
-      border-left: 3px solid var(--accent2);
-      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
       background: var(--surface2);
-      border-radius: 6px;
-      margin: 10px 0;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      transition: border-color 0.2s;
     }
+    .step:hover {
+      border-left-color: var(--accent2);
+    }
+    .step strong { color: var(--text); }
 
     .actions {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 14px;
+      margin-top: 18px;
     }
 
     .btn {
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 10px 18px;
       background: var(--surface2);
       color: var(--text);
       cursor: pointer;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
+      transition: all 0.2s;
     }
 
     .btn-primary {
-      background: var(--accent);
+      background: linear-gradient(135deg, #ffa116, #f39c12);
       color: #0d1117;
-      border-color: var(--accent);
+      border-color: #ffa116;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>LeetSync Workflow</h1>
-      <p>This page explains how the extension works end-to-end, and gives quick access to setup.</p>
+      <div class="header-row">
+        <div class="logo-icon">⚡</div>
+        <h1>LeetSync Workflow Guide</h1>
+      </div>
+      <p>Automate your developer portfolio by syncing your accepted LeetCode solutions directly to GitHub.</p>
       <div class="actions">
-        <button class="btn btn-primary" id="go-settings">Open Settings</button>
+        <button class="btn btn-primary" id="go-settings">Open Extension Settings</button>
       </div>
     </div>
 
     <div class="card">
-      <h2>How It Works</h2>
-      <div class="step"><strong>1. Connect GitHub</strong><br>Login from Settings using either OAuth or PAT.</div>
-      <div class="step"><strong>2. Configure Repository</strong><br>Set repository name, branch, and sync preferences.</div>
-      <div class="step"><strong>3. Solve on LeetCode</strong><br>When a submission is accepted, LeetSync captures it.</div>
-      <div class="step"><strong>4. Auto Sync to GitHub</strong><br>Your solution is created/appended in the configured repo.</div>
-      <div class="step"><strong>5. Track Progress</strong><br>Use Popup and Settings Analytics/History tabs to monitor sync status.</div>
+      <h2>End-to-End How It Works</h2>
+      <div class="step"><strong>1. Connect GitHub Account</strong><br>Authenticate using GitHub OAuth or Personal Access Token (PAT) with repo scope.</div>
+      <div class="step"><strong>2. Configure Target Repository</strong><br>Select target repository name, branch, folder structure (Topic, Difficulty, Language, or Flat), and commit template.</div>
+      <div class="step"><strong>3. Solve Problems on LeetCode</strong><br>When a submission receives an <strong>Accepted</strong> verdict, LeetSync automatically captures the code, runtime, memory, and difficulty.</div>
+      <div class="step"><strong>4. Instant GitHub Sync & README Update</strong><br>Your solution is committed to GitHub, updating `README.md` progress shields automatically.</div>
+      <div class="step"><strong>5. Track Progress & Backups</strong><br>Monitor sync stats, day streaks, and sync history in the Popup Dashboard or run full batch backups.</div>
     </div>
   </div>
 
