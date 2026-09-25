@@ -525,12 +525,11 @@ async function handleFullBackup(sendResponse) {
     let hasNext = true;
 
     while (hasNext && !cancelBackupFlag) {
-      const res = await fetch(`https://leetcode.com/api/submissions/?offset=${offset}&limit=20`);
-      if (!res.ok) break;
-      const data = await res.json();
-      
-      for (const sub of data.submissions_dump) {
-        if (sub.status_display !== 'Accepted') continue;
+      const batch = await fetchSubmissionsBatch(offset, 20);
+      if (!batch.submissions || batch.submissions.length === 0) break;
+
+      for (const sub of batch.submissions) {
+        if (sub.statusDisplay !== 'Accepted' && sub.status_display !== 'Accepted') continue;
 
         const meta = metadataMap[sub.title] || {};
         const problemKey = getBackupProblemKey(sub, meta);
@@ -542,7 +541,8 @@ async function handleFullBackup(sendResponse) {
           submissionsToSync.push({ sub, meta });
         }
       }
-      if (!data.has_next) hasNext = false;
+
+      hasNext = batch.hasNext;
       offset += 20;
       await new Promise(r => setTimeout(r, 400));
     }
@@ -580,18 +580,30 @@ async function handleFullBackup(sendResponse) {
       if (cancelBackupFlag) break;
       const item = submissionsToSync[i];
       const { sub, meta } = item;
+
+      // Fetch full details (code, runtime, memory) via GraphQL if needed
+      let details = null;
+      if (!sub.code) {
+        details = await fetchSubmissionDetails(sub.id);
+      }
+
       const problemObj = {
-        id: meta.id || String(sub.frontend_question_id || sub.question_id || sub.id || '0000'),
-        title: sub.title,
-        slug: meta.slug || sub.title_slug || normalizeProblemKey(sub.title) || 'unknown-problem',
-        difficulty: meta.difficulty,
-        language: sub.lang,
-        code: sub.code,
+        id: details?.question?.questionId || meta.id || String(sub.frontend_question_id || sub.question_id || '0000'),
+        title: details?.question?.title || sub.title,
+        slug: details?.question?.titleSlug || meta.slug || sub.titleSlug || sub.title_slug || normalizeProblemKey(sub.title) || 'unknown-problem',
+        difficulty: details?.question?.difficulty || meta.difficulty,
+        tags: details?.question?.topicTags ? details.question.topicTags.map(t => t.name) : [],
+        language: details?.lang?.verboseName || details?.lang?.name || sub.lang || sub.language || 'Unknown',
+        runtime: details?.runtime || '',
+        memory: details?.memory || '',
+        code: details?.code || sub.code || '',
         submissionId: sub.id,
-        submittedAt: sub.timestamp
+        submittedAt: details?.timestamp || sub.timestamp
       };
 
-      await syncToGitHub(problemObj);
+      if (problemObj.code) {
+        await syncToGitHub(problemObj);
+      }
       backupProgress.current = i + 1;
       broadcastQueueUpdate();
       broadcastToPopup({
@@ -633,6 +645,110 @@ async function handleFullBackup(sendResponse) {
     broadcastQueueUpdate();
     processSyncQueue();
   }
+}
+
+async function fetchSubmissionsBatch(offset = 0, limit = 20) {
+  try {
+    const res = await fetch('https://leetcode.com/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `
+          query submissionList($offset: Int!, $limit: Int!) {
+            submissionList(offset: $offset, limit: $limit) {
+              hasNext
+              submissions {
+                id
+                title
+                titleSlug
+                statusDisplay
+                lang
+                timestamp
+                url
+              }
+            }
+          }
+        `,
+        variables: { offset, limit }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.data?.submissionList) {
+        return {
+          submissions: data.data.submissionList.submissions || [],
+          hasNext: !!data.data.submissionList.hasNext
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[LeetSync BG] GraphQL submissionList fetch failed, trying legacy API:', e);
+  }
+
+  try {
+    const res = await fetch(`https://leetcode.com/api/submissions/?offset=${offset}&limit=${limit}`);
+    if (res.ok) {
+      const data = await res.json();
+      const submissions = (data.submissions_dump || []).map(s => ({
+        id: s.id,
+        title: s.title,
+        titleSlug: s.title_slug,
+        statusDisplay: s.status_display,
+        lang: s.lang,
+        timestamp: s.timestamp,
+        code: s.code
+      }));
+      return { submissions, hasNext: !!data.has_next };
+    }
+  } catch (e) {
+    console.warn('[LeetSync BG] Legacy API submission fetch failed:', e);
+  }
+
+  return { submissions: [], hasNext: false };
+}
+
+async function fetchSubmissionDetails(submissionId) {
+  try {
+    const res = await fetch('https://leetcode.com/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `
+          query submissionDetails($submissionId: Int!) {
+            submissionDetails(submissionId: $submissionId) {
+              id
+              code
+              runtime
+              memory
+              statusDisplay
+              timestamp
+              lang {
+                name
+                verboseName
+              }
+              question {
+                questionId
+                title
+                titleSlug
+                difficulty
+                topicTags {
+                  name
+                }
+              }
+            }
+          }
+        `,
+        variables: { submissionId: Number(submissionId) }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.data?.submissionDetails || null;
+    }
+  } catch (e) {
+    console.warn('[LeetSync BG] GraphQL submissionDetails failed:', e);
+  }
+  return null;
 }
 
 async function fetchProblemMetadata() {

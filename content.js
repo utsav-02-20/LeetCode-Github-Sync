@@ -10,6 +10,13 @@
   // Track synced problems for the current page session
   const _syncedThisLoad = new Set();
 
+  // Listen for intercepted main-world GraphQL submission events
+  window.addEventListener('LEETSYNC_GRAPHQL_SUBMISSION', (event) => {
+    if (event?.detail) {
+      handleAcceptedSubmission(event.detail);
+    }
+  });
+
   // ─── Network Interception ─────────────────────────────────────────────────
 
   const originalXHROpen = XMLHttpRequest.prototype.open;
@@ -51,9 +58,9 @@
         }
       }
 
-      // submissionList
-      if (d.submissionList && d.submissionList.submissions) {
-        // Not triggered here — only on real-time accept
+      // submissionCheck query
+      if (d.submissionCheck && d.submissionCheck.status_display === 'Accepted') {
+        handleAcceptedSubmission(d.submissionCheck);
       }
     }
   }
@@ -271,10 +278,14 @@
 
   function extractLanguageFromPage() {
     const langBtns = document.querySelectorAll('button');
-    const langs = ['C++', 'Java', 'Python', 'Python3', 'JavaScript', 'TypeScript', 'Go', 'Rust', 'Kotlin', 'C', 'C#', 'Swift'];
+    const langs = [
+      'C++', 'Java', 'Python', 'Python3', 'JavaScript', 'TypeScript', 'Go', 'Rust',
+      'Kotlin', 'C', 'C#', 'Swift', 'PHP', 'Ruby', 'Scala', 'SQL', 'MySQL',
+      'MS SQL Server', 'PostgreSQL', 'Oracle', 'Pandas', 'Racket', 'Erlang', 'Elixir', 'Dart', 'Bash'
+    ];
     for (const btn of langBtns) {
       const text = btn.textContent.trim();
-      if (langs.includes(text)) return text;
+      if (langs.some(l => l.toLowerCase() === text.toLowerCase())) return text;
     }
     // Check select elements
     const selects = document.querySelectorAll('select');
@@ -282,7 +293,7 @@
       const val = sel.value;
       if (langs.some(l => l.toLowerCase() === val.toLowerCase())) return val;
     }
-    return 'C++'; // Default for CP folks
+    return null;
   }
 
 function extractCodeFromEditor() {
