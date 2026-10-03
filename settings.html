@@ -8,30 +8,34 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0b0e14;
-      --surface: #151b23;
-      --surface2: #212830;
-      --border: #30363d;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --text: #f0f6fc;
-      --muted: #8b949e;
+      --bg: #090d16;
+      --surface: #121824;
+      --surface2: #1c2434;
+      --surface-hover: #242e42;
+      --border: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --text: #f3f4f6;
+      --muted: #6b7280;
       --accent: #ffa116;
-      --accent2: #58a6ff;
-      --success: #2da44e;
-      --danger: #f85149;
-      --warn: #d29922;
-      --easy: #00b8a3;
-      --medium: #ffc01e;
-      --hard: #ff375f;
-      --radius: 8px;
+      --accent-gradient: linear-gradient(135deg, #ffa116 0%, #ff7b00 100%);
+      --accent-glow: rgba(255, 161, 22, 0.25);
+      --accent2: #38bdf8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --easy: #10b981;
+      --medium: #f59e0b;
+      --hard: #f43f5e;
+      --radius: 12px;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
       font-size: 14px;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
     .layout {

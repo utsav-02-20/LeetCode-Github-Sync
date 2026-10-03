@@ -13,7 +13,12 @@
   // Listen for intercepted main-world GraphQL submission events
   window.addEventListener('LEETSYNC_GRAPHQL_SUBMISSION', (event) => {
     if (event?.detail) {
-      handleAcceptedSubmission(event.detail);
+      try {
+        const sub = typeof event.detail === 'string' ? JSON.parse(event.detail) : event.detail;
+        if (sub) handleAcceptedSubmission(sub);
+      } catch (e) {
+        console.error('[LeetSync] Error processing GraphQL event:', e);
+      }
     }
   });
 

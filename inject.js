@@ -23,10 +23,18 @@
           if (data.data) {
             const d = data.data;
 
-            if (d.submissionDetails && d.submissionDetails.statusDisplay === 'Accepted') {
-              dispatchSubmission(d.submissionDetails);
-            } else if (d.submissionCheck && d.submissionCheck.status_display === 'Accepted') {
-              dispatchSubmission(d.submissionCheck);
+            if (d.submissionDetails) {
+              const sub = d.submissionDetails;
+              const status = sub.statusDisplay || sub.status_display || sub.status_msg || '';
+              if (status.toLowerCase().includes('accepted')) {
+                dispatchSubmission(sub);
+              }
+            } else if (d.submissionCheck) {
+              const sub = d.submissionCheck;
+              const status = sub.statusDisplay || sub.status_display || sub.status_msg || '';
+              if (status.toLowerCase().includes('accepted')) {
+                dispatchSubmission(sub);
+              }
             }
           }
         }).catch(() => {});
@@ -39,9 +47,15 @@
   };
 
   function dispatchSubmission(sub) {
-    window.dispatchEvent(new CustomEvent('LEETSYNC_GRAPHQL_SUBMISSION', {
-      detail: sub
-    }));
+    try {
+      window.dispatchEvent(new CustomEvent('LEETSYNC_GRAPHQL_SUBMISSION', {
+        detail: JSON.stringify(sub)
+      }));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('LEETSYNC_GRAPHQL_SUBMISSION', {
+        detail: sub
+      }));
+    }
   }
 
   console.log('[LeetSync] Main-world interceptor loaded.');
